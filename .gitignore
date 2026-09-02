@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# generated native folders — Expo Go build, these must never exist (see P00)
+/cadence/ios
+/cadence/android
+
+# local env
+.env
+.env.*.local
+.env.local
+
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+
+# editor / OS
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
