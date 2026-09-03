@@ -80,12 +80,34 @@ Everything else — P01 through P06, P08 (without transcripts), P09, P10, P11, P
 
 ---
 
+## Database: local PostgreSQL 17 (decided 2026-09-03, in P01)
+
+There is no hosted Supabase project and no Docker daemon. The database is the PostgreSQL
+install on this PC, driven by two dependency-free scripts that stand in for the Supabase
+CLI:
+
+```bash
+node supabase/db.mjs reset    # the equivalent of `supabase db reset`
+node supabase/db.mjs test     # 82 assertions proving the record cannot be falsified
+node supabase/gen-types.mjs   # the equivalent of `supabase gen types typescript`
+```
+
+Everything in `supabase/migrations/` is exactly what a hosted project would run.
+The three things the platform would have provided — `auth.uid()`, the `storage`
+schema, and the Supabase roles — live in `supabase/local/`, outside the migration
+ledger, so **moving to hosted Supabase later is a connection string, not a rewrite.**
+
+What this defers: real sign-up (GoTrue) until **P02**, and actual audio bytes until
+**P06**. See [../../supabase/README.md](../../supabase/README.md).
+
+---
+
 ## Phases
 
 | # | Phase | Depends on | Decisions | Est. |
 |---|---|---|---|---|
 | P00 | [Project setup and dev client](pending/P00-project-setup.md) | — | OQ-6, OQ-9 | 0.5 day |
-| P01 | [Supabase schema, immutability, RLS](pending/P01-supabase-schema-and-rls.md) | P00 | **OQ-1, OQ-2, OQ-8** | 2 days |
+| P01 | ✅ [Supabase schema, immutability, RLS](completed/P01-supabase-schema-and-rls.md) | P00 | **OQ-1, OQ-2, OQ-8** | 2 days |
 | P02 | [Auth and app shell](pending/P02-auth-and-app-shell.md) | P00, P01 | — | 1 day |
 | P03 | [Goals](pending/P03-goals.md) | P02 | — | 1 day |
 | P04 | [Weekly planner and finalization](pending/P04-weekly-planner-and-finalization.md) | P03 | **OQ-3**, OQ-8 | 2 days |

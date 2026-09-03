@@ -4,7 +4,8 @@ Personal application projects.
 
 ## Cadence — weekly goals and consistency tracker
 
-**Status: planning. No code yet — by design.**
+**Status: building.** P01 (the database) is done and tested. P00 (the app scaffold) is
+built but not yet verified on the iPhone, so it is still in `pending/`.
 
 A private weekly goal-and-task tracker where nothing you commit to can ever be deleted, only
 closed with an honest status (`C` / `N` / `NC`) and a mandatory written or spoken note.
@@ -22,6 +23,7 @@ Stack: **Expo (React Native) + TypeScript + Supabase**.
 | [doc/00-app-name-options.md](doc/00-app-name-options.md) | **Pick the name.** "Cadence" is a placeholder. |
 | [doc/implementation/README.md](doc/implementation/README.md) | **The 13-phase build plan.** Decisions are asked inside each phase file. |
 | [doc/07-skills-and-tooling.md](doc/07-skills-and-tooling.md) | **Install the plugins** before any code is written. |
+| [supabase/README.md](supabase/README.md) | **The database.** How to rebuild it, and why it runs on local Postgres. |
 
 ---
 
@@ -40,8 +42,19 @@ doc/
 ├── 08-open-questions.md           Index of which phase asks which decision
 └── implementation/
     ├── README.md                  Workflow + phase table. Decisions live in phase files
-    ├── pending/                   P00 … P12
-    └── completed/                 (empty)
+    ├── pending/                   P00, P02 … P13
+    └── completed/                 P01
+```
+
+```
+supabase/                          The database. Where the app's promise is enforced.
+├── README.md                      How to run it, and the rules the tests hold in place
+├── db.mjs                         reset / migrate / seed / test / status / psql
+├── gen-types.mjs                  regenerates cadence/src/types/database.types.ts
+├── migrations/                    0001 … 0012, transplantable to hosted Supabase
+├── local/                         auth.* and storage.* shims. Local only.
+├── tests/                         82 assertions that try to falsify the record
+└── seed.sql                       4 weeks of history, including an honest correction
 ```
 
 ---
