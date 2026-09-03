@@ -10,7 +10,7 @@ import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
  * NativeTabs.Trigger.*, which is the SDK 57 shape. This project runs SDK 54, where
  * they are top-level exports of expo-router/unstable-native-tabs.
  */
-export default function AppTabs() {
+export default function TabsLayout() {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">

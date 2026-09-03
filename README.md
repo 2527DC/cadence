@@ -4,8 +4,9 @@ Personal application projects.
 
 ## Cadence — weekly goals and consistency tracker
 
-**Status: building.** P01 (the database) is done and tested. P00 (the app scaffold) is
-built but not yet verified on the iPhone, so it is still in `pending/`.
+**Status: building.** The database (P01), auth and shell (P02) and goals (P03) are done.
+The core loop — plan a week, commit it, close tasks with a note — works end to end, though
+P04, P05 and P09 have acceptance criteria still open. **Not yet run on a physical iPhone.**
 
 A private weekly goal-and-task tracker where nothing you commit to can ever be deleted, only
 closed with an honest status (`C` / `N` / `NC`) and a mandatory written or spoken note.

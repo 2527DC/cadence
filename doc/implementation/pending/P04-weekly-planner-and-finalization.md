@@ -67,3 +67,37 @@ one-way door.
 ## Definition of done
 You can plan a real week, finalize it, and feel the weight of the commitment. If finalizing
 does not feel slightly serious, the confirmation copy is not doing its job.
+
+---
+## Progress — 2026-09-03 (partially built, NOT complete)
+
+The core loop works end to end: plan drafts, commit them, and the commitment is real.
+This file stays in `pending/` because several acceptance criteria are genuinely not met.
+
+**Built** — `src/app/(tabs)/index.tsx`, `src/lib/week.ts`, `src/api/tasks.ts`
+- Week header with previous/next arrows and the range, `formatWeekRange`
+- Drafts render dashed and removable; committed render solid with a status pill and no
+  delete affordance anywhere
+- Inline add row with an optional goal chip
+- "Commit N tasks" with a confirmation that spells out the permanence, and warns about
+  late adds when it is past Wednesday
+- `late_add` badge on committed tasks
+- `src/lib/week.ts` pinned to Asia/Kolkata, with **24 unit tests** covering the boundary
+  P04 asked for: Sunday 23:59 IST and Monday 00:01 IST are two minutes apart and land in
+  different weeks, plus month and 1-January crossings
+
+**Deviation worth noting:** the timezone is handled with `Intl` + `date-fns` rather than
+`date-fns-tz`. One fewer dependency, and `todayInAppTimezone()` is four lines. The tests
+are what make that safe.
+
+**Not built**
+- [ ] Tasks grouped by day, with an "Unscheduled" group. Everything is one flat list, and
+      `planned_for` is never set by the UI.
+- [ ] Swipe-to-delete on drafts (a "Remove" button instead)
+- [ ] Editing a draft in place — `useUpdateDraft` exists and is unused
+- [ ] Per-task finalize; today it is all-drafts-or-nothing
+- [ ] Success haptic
+- [ ] Past weeks are still writable. They should be read-only.
+- [ ] Uncommitted-draft count at week end
+- [ ] Not measured at 50 tasks, and it is a `ScrollView`, not a list — that is the first
+      thing to change if it drags

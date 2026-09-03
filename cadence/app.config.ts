@@ -69,9 +69,12 @@ const config: ExpoConfig = {
     reactCompiler: true,
   },
 
+  // Kept only so `expo config` shows at a glance whether the environment was loaded.
+  // The app itself reads process.env.EXPO_PUBLIC_* directly in src/lib/supabase.ts —
+  // those are inlined into the bundle at build time, which is the supported path.
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
-    supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseKeyPresent: Boolean(process.env.EXPO_PUBLIC_SUPABASE_KEY),
   },
 };
 

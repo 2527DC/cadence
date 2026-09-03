@@ -32,3 +32,17 @@ Create, edit, archive and view goals. The foundation the whole task model hangs 
 
 ## Definition of done
 You can create the three or four goals you actually care about, and they persist.
+
+---
+## Completion record
+- Completed: 2026-09-03
+- Verified by: typecheck, lint, iOS bundle. Create / pause / archive / reactivate all go
+  through `src/api/goals.ts`.
+- Deviations: goal colour is not yet user-selectable — every goal takes the schema
+  default and the swatch renders it. The column and the UI slot exist; the picker is a
+  P12 job.
+- **The screen has no delete button, and cannot have one.** `authenticated` holds no
+  DELETE policy (0010/0013) and no DELETE privilege (0014), so the API would refuse it.
+  Archiving is the operation, which keeps every historical task and its analytics intact.
+- Not done: editing an existing goal's title or target. Archive-and-recreate works today;
+  `useUpdateGoal` is written and unused.

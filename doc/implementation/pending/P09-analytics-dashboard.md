@@ -99,3 +99,21 @@ am I not keeping?* If you cannot, the hierarchy is wrong — cut sections until 
 The hardest part of this phase is **not** the charts. It is refusing to add the ninth
 metric. Every number on this screen competes with every other for attention. When in
 doubt, cut.
+
+---
+## Progress — 2026-09-03 (first slice only)
+
+`src/app/(tabs)/dashboard.tsx` and `src/api/analytics.ts`: streak, kept-weeks ratio, and
+a per-week list reading `v_week_rollup` — completion rate, NC count and rate, late adds.
+
+**The OQ-2 trap is handled.** "A week with zero finalized tasks breaks the streak" cannot
+live in the view, because such a week produces no row at all. `computeStreak()` walks the
+calendar backwards rather than the returned rows, so a missing week ends the streak. If it
+walked the data instead, the cheapest way to protect a streak would be to stop planning —
+exactly the behaviour this app exists to catch. The week in progress is excluded, since it
+has not been kept or lost yet.
+
+NC is shown next to every completion rate, never folded away, and flagged above 30%.
+
+Everything else in this phase — charts, per-goal attainment, the guardrail banners — is
+still to do, and doc/05-analytics-spec.md is the source of truth for it.
