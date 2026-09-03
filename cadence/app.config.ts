@@ -58,6 +58,10 @@ const config: ExpoConfig = {
         imageWidth: 76,
       },
     ],
+    // Stores the Supabase session in the iOS keychain rather than AsyncStorage.
+    // doc/02-tech-stack.md §3: this is a private journal, so the session token
+    // belongs in secure storage.
+    'expo-secure-store',
   ],
 
   experiments: {
