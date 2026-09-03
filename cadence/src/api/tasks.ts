@@ -234,7 +234,39 @@ export function useCloseTask() {
       if (error) throw new Error(error.message);
       return data as Task;
     },
-    onSuccess: (_task, input) => {
+
+    // Optimistic: the status flips in the cache before the round trip, so the sheet
+    // can close immediately. The RPC is still the authority — it validates the note,
+    // the NC reason and the draft check, and any of those rejecting rolls this back.
+    onMutate: async (input) => {
+      await qc.cancelQueries({ queryKey: taskKeys.week(input.weekStart) });
+      const previous = qc.getQueryData<Task[]>(taskKeys.week(input.weekStart));
+
+      qc.setQueryData<Task[]>(taskKeys.week(input.weekStart), (old) =>
+        old?.map((t) =>
+          t.id === input.taskId
+            ? {
+                ...t,
+                status: input.status,
+                closed_at: new Date().toISOString(),
+                nc_reason: input.status === 'NC' ? (input.ncReason ?? null) : null,
+              }
+            : t,
+        ),
+      );
+
+      return { previous };
+    },
+
+    // Put the old rows back and let the caller show the database's message. A silent
+    // rollback would leave the user believing a task closed when it did not.
+    onError: (_err, input, ctx) => {
+      if (ctx?.previous) {
+        qc.setQueryData(taskKeys.week(input.weekStart), ctx.previous);
+      }
+    },
+
+    onSettled: (_data, _err, input) => {
       void qc.invalidateQueries({ queryKey: taskKeys.week(input.weekStart) });
       void qc.invalidateQueries({ queryKey: taskKeys.history(input.taskId) });
       void qc.invalidateQueries({ queryKey: ['analytics'] });

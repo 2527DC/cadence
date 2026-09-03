@@ -1,6 +1,7 @@
 import '@/global.css';
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -62,12 +63,14 @@ export default function RootLayout() {
         <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
           <AuthProvider>
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <RouteGuard>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />
-                </Stack>
-              </RouteGuard>
+              <BottomSheetModalProvider>
+                <RouteGuard>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />
+                  </Stack>
+                </RouteGuard>
+              </BottomSheetModalProvider>
             </ThemeProvider>
           </AuthProvider>
         </PersistQueryClientProvider>

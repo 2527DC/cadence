@@ -62,6 +62,8 @@ const config: ExpoConfig = {
     // doc/02-tech-stack.md §3: this is a private journal, so the session token
     // belongs in secure storage.
     'expo-secure-store',
+    // Microphone access for voice notes (P06). The usage string is in infoPlist below.
+    'expo-audio',
   ],
 
   experiments: {
