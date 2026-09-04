@@ -19,8 +19,8 @@ import { clockOf } from './model';
 export function DaySeparator({ label }: { label: string }) {
   return (
     <View className="mb-2 mt-4 items-center">
-      <View className="rounded-full bg-raised px-3 py-1 dark:bg-raised-dark">
-        <Text variant="micro" className="font-semibold uppercase tracking-wider">
+      <View className="bg-raised px-3 py-1 dark:bg-raised-dark rounded-full">
+        <Text variant="micro" className="font-semibold tracking-wider uppercase">
           {label}
         </Text>
       </View>
@@ -75,7 +75,7 @@ function GoalChip({ title, onPress }: { title: string; onPress?: () => void }) {
         onPress?.();
       }}
       className={CHIP}>
-      <View className="h-2 w-2 rounded-full bg-accent dark:bg-accent-dark" />
+      <View className="h-2 w-2 bg-accent dark:bg-accent-dark rounded-full" />
       <Text variant="micro" className="font-semibold text-ink dark:text-ink-dark" numberOfLines={1}>
         {title}
       </Text>
@@ -107,7 +107,7 @@ export const MessageBubble = memo(function MessageBubble({
   return (
     <View>
       {dayLabel ? <DaySeparator label={dayLabel} /> : null}
-      <View className="mb-1.5 items-end px-gutter">
+      <View className="mb-1.5 px-gutter items-end">
         <View
           accessible
           accessibilityLabel={
@@ -115,7 +115,7 @@ export const MessageBubble = memo(function MessageBubble({
               ? `Voice note, ${clockOf(message.created_at)}`
               : `${message.body ?? ''}, ${clockOf(message.created_at)}`
           }
-          className={`rounded-2xl rounded-br-md border border-border bg-surface px-3.5 py-2.5 dark:border-border-dark dark:bg-surface-dark ${
+          className={`rounded-2xl rounded-br-md border-border bg-surface px-3.5 py-2.5 dark:border-border-dark dark:bg-surface-dark border ${
             voiceNoteId ? 'w-[88%]' : 'max-w-[88%]'
           } ${pending ? 'opacity-70' : ''}`}>
           {message.linked_task_id ? <TaskChip taskId={message.linked_task_id} /> : null}
@@ -132,7 +132,7 @@ export const MessageBubble = memo(function MessageBubble({
             <Text selectable>{message.body}</Text>
           )}
 
-          <View className="mt-1 flex-row items-center justify-end gap-1">
+          <View className="mt-1 gap-1 flex-row items-center justify-end">
             <Text variant="micro">{clockOf(message.created_at)}</Text>
             {pending ? <Text variant="micro">· sending</Text> : null}
           </View>

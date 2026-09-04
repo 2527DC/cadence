@@ -208,8 +208,7 @@ export function previewOf(message: { kind: MessageKind; body: string | null }, m
  * goal's title so the thread row can be created with it on first open.
  */
 export type ThreadSelection =
-  | { kind: 'daily_log' }
-  | { kind: 'goal'; goalId: string; goalTitle: string };
+  { kind: 'daily_log' } | { kind: 'goal'; goalId: string; goalTitle: string };
 
 export const DAILY_LOG: ThreadSelection = { kind: 'daily_log' };
 

@@ -10,7 +10,7 @@ the enforcement works.
 
 ```bash
 node supabase/db.mjs reset    # drop, recreate, shim, migrate, seed
-node supabase/db.mjs test     # 82 assertions. This is the one that matters.
+node supabase/db.mjs test     # 86 assertions. This is the one that matters.
 node supabase/gen-types.mjs   # regenerate cadence/src/types/database.types.ts
 ```
 
@@ -184,3 +184,50 @@ set session_replication_role = replica;   -- as a superuser
 -- ... restore ...
 reset session_replication_role;
 ```
+
+---
+
+## Backups
+
+Written in P12. **Nothing here has been run yet** — the plan exists, the restore has not
+been rehearsed, and until it has this section is a promise rather than a backup.
+
+Today the database is the PostgreSQL install on this PC (see the platform note in
+`../doc/implementation/README.md`). There is no hosted project, so there is no automatic
+backup and no point-in-time recovery. A lost disk is a lost record, which for an app
+whose entire premise is *the record cannot be falsified* is the one failure that matters.
+
+### Taking a dump
+
+```bash
+# Everything: schema, data, the migration ledger. Custom format, so pg_restore can
+# be selective later.
+pg_dump --format=custom --no-owner --no-privileges \
+        --file="backups/cadence-$(date +%Y-%m-%d).dump" "$DATABASE_URL"
+```
+
+`$DATABASE_URL` comes from `../.env.local`, the same file `db.mjs` reads.
+
+### Where a dump goes
+
+`backups/` at the repo root, which is **gitignored** — a dump contains every note you
+have ever written and must never reach a remote. Copy it off the machine yourself: an
+external drive, or an encrypted folder in whatever cloud storage you already trust. A
+backup that only exists on the machine being backed up is not a backup.
+
+Weekly is enough. The natural moment is the Sunday review, since you are already in the
+app.
+
+### Restoring
+
+Read **Restoring a dump** above first — `0006` will reject a plain data-only restore,
+because a restore inserts rows that are already closed and that is exactly what the
+guard forbids. The sequence is: create an empty database, `set session_replication_role
+= replica`, restore, reset, then run `node supabase/db.mjs test` against it. If the 86
+assertions pass on the restored copy, the restore is good.
+
+### When this moves to hosted Supabase
+
+Daily backups come with the paid tiers and `supabase db dump` replaces the `pg_dump`
+line. The restore rehearsal still has to happen, and this section should be rewritten
+rather than deleted — a backup nobody has ever restored is a guess.

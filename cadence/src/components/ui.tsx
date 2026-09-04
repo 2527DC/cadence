@@ -82,8 +82,7 @@ export function Button({
       accessibilityState={{ disabled: !!isDisabled, busy: loading }}
       disabled={isDisabled}
       className={`${BUTTON_BASE} ${BUTTON_VARIANTS[variant]} ${isDisabled ? 'opacity-50' : ''} ${className}`}
-      {...rest}
-    >
+      {...rest}>
       {loading ? (
         <ActivityIndicator color={variant === 'primary' ? '#FFFFFF' : '#3B6FF5'} />
       ) : (
@@ -164,7 +163,7 @@ export function StatusDot({ status, className = '' }: { status: TaskStatus; clas
 export function StatusPill({ status }: { status: TaskStatus }) {
   const meta = STATUS_META[status];
   return (
-    <View className="flex-row items-center gap-1.5 rounded-full bg-raised px-2 py-1 dark:bg-raised-dark">
+    <View className="gap-1.5 bg-raised px-2 py-1 dark:bg-raised-dark flex-row items-center rounded-full">
       <StatusDot status={status} className="h-2 w-2" />
       <RNText className={`text-micro font-semibold ${meta.text}`}>{status}</RNText>
     </View>
@@ -185,7 +184,7 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <View className="items-center px-6 py-12">
+    <View className="px-6 py-12 items-center">
       <Text variant="heading" className="text-center">
         {title}
       </Text>
@@ -198,12 +197,65 @@ export function EmptyState({
 }
 
 // ---------------------------------------------------------------------------
+// ErrorState
+// ---------------------------------------------------------------------------
+
+/** Whatever a query, a mutation or a `catch` handed us, as something readable. */
+export function errorText(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (typeof error === 'string' && error.trim()) return error;
+  return 'Something went wrong, and it did not say what.';
+}
+
+/**
+ * The one shape every failed read takes. P12.
+ *
+ * Three rules it exists to enforce across the app:
+ *
+ *   1. The message is shown verbatim. The database's refusals were written to be read
+ *      by a person, and replacing them with "Something went wrong" throws away the
+ *      only sentence that says what to do next.
+ *   2. There is always a way to try again when the caller can offer one, so a failed
+ *      read is never a dead end that needs the app killed.
+ *   3. Red is never the only signal — the dot sits next to a heading that says the
+ *      same thing in words, for a colour-blind reader and for VoiceOver.
+ */
+export function ErrorState({
+  title = 'That did not load',
+  message,
+  onRetry,
+  className = '',
+}: {
+  title?: string;
+  message: string;
+  onRetry?: () => void;
+  className?: string;
+}) {
+  return (
+    <Card className={`mt-4 ${className}`} accessibilityRole="alert">
+      <View className="gap-2 flex-row items-center">
+        <View className="bg-status-n dark:bg-status-n-dark h-2 w-2 rounded-full" />
+        <Text variant="heading" className="flex-1">
+          {title}
+        </Text>
+      </View>
+      <Text variant="meta" className="mt-2" selectable>
+        {message}
+      </Text>
+      {onRetry ? (
+        <Button label="Try again" variant="secondary" className="mt-4" onPress={onRetry} />
+      ) : null}
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Loading
 // ---------------------------------------------------------------------------
 
 export function Loading({ label }: { label?: string }) {
   return (
-    <View className="items-center py-12">
+    <View className="py-12 items-center" accessible accessibilityLabel={label ?? 'Loading'}>
       <ActivityIndicator />
       {label ? (
         <Text variant="meta" className="mt-3">

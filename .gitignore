@@ -24,3 +24,7 @@ supabase/.temp/
 .DS_Store
 Thumbs.db
 *.tsbuildinfo
+
+# database dumps — every note you have ever written is in one of these (P12)
+backups/
+*.dump

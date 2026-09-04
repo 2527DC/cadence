@@ -112,13 +112,15 @@ export type NewGoal = {
   target_per_week: number;
   /** Minted on the device by useCreateGoal, for the same reason as NewTask.id. */
   id?: string;
+  /** Who was signed in when this was typed, for the same reason as NewTask.userId. */
+  userId?: string;
 };
 
 const createGoalOptions = {
   mutationKey: goalMutationKeys.create,
   mutationFn: async (input: NewGoal): Promise<Goal> => {
     const id = input.id ?? clientId();
-    const userId = await sessionUserId();
+    const userId = await sessionUserId(input.userId);
 
     const row: TablesInsert<'goals'> = {
       id,
@@ -176,14 +178,24 @@ export function useCreateGoal() {
     },
   });
 
+  // The id and the owner are fixed at the tap, in the variables, for the reasons on
+  // NewTask.id and NewTask.userId.
   const { mutate: rawMutate, mutateAsync: rawMutateAsync } = result;
+  const stamp = useCallback(
+    (input: NewGoal): NewGoal => ({
+      ...input,
+      id: input.id ?? clientId(),
+      userId: input.userId ?? userId,
+    }),
+    [userId],
+  );
   const mutate = useCallback<typeof rawMutate>(
-    (input, options) => rawMutate({ ...input, id: input.id ?? clientId() }, options),
-    [rawMutate],
+    (input, options) => rawMutate(stamp(input), options),
+    [rawMutate, stamp],
   );
   const mutateAsync = useCallback<typeof rawMutateAsync>(
-    (input, options) => rawMutateAsync({ ...input, id: input.id ?? clientId() }, options),
-    [rawMutateAsync],
+    (input, options) => rawMutateAsync(stamp(input), options),
+    [rawMutateAsync, stamp],
   );
 
   return { ...result, mutate, mutateAsync };
@@ -228,7 +240,16 @@ export function useUpdateGoal() {
  * you abandoned is part of the record, and erasing it would make the history lie about
  * what you were actually trying to do.
  *
- * Replaying this is harmless — setting the same state twice is the same state.
+ * Archiving also closes the goal's window. `end_week` is what every consumer reads to
+ * know which weeks a goal was live in — goalsThatWeek in the review, and the debt in
+ * goalScorecards() — and leaving it null makes an abandoned goal look active forever:
+ * "0 / 3" in every later week's review, frozen into that week's weekly_reviews.stats,
+ * and a debt that grows by the target every week for something you stopped doing. The
+ * Monday of the current week is the honest answer, and it satisfies both
+ * `end_week_is_monday` and `end_after_start`. Un-archiving clears it again.
+ *
+ * Replaying this is harmless — setting the same state twice is the same state, and the
+ * end week is recomputed from the same Monday.
  */
 const setGoalStateOptions = {
   mutationKey: goalMutationKeys.setState,
@@ -236,7 +257,11 @@ const setGoalStateOptions = {
     checked(
       await supabase
         .from('goals')
-        .update({ state, updated_at: new Date().toISOString() })
+        .update({
+          state,
+          end_week: state === 'archived' ? currentWeekStart() : null,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', id)
         .select()
         .single(),
@@ -245,7 +270,12 @@ const setGoalStateOptions = {
     const ctx = await snapshotGoals();
     const goal = cachedGoal(id);
     if (!goal) return ctx;
-    const moved: Goal = { ...goal, state, updated_at: new Date().toISOString() };
+    const moved: Goal = {
+      ...goal,
+      state,
+      end_week: state === 'archived' ? currentWeekStart() : null,
+      updated_at: new Date().toISOString(),
+    };
     // Move it between filtered lists, so archiving from the Active tab makes it leave
     // that tab now rather than sit there with an "Archive" button that does nothing.
     patchGoalLists((rows, filter) => {

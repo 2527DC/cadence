@@ -136,15 +136,32 @@ async function findGoalThread(goalId: string): Promise<Thread | null> {
   return data;
 }
 
-async function ensureGoalThread(goalId: string, goalTitle: string): Promise<Thread> {
+/**
+ * Returns null when the goal is not this account's to open a thread about.
+ *
+ * The id can come off disk from a previous session (features/chat/last-thread.ts), and
+ * the foreign key to goals is checked by the system, which does not apply RLS — so an
+ * insert naming a goal this user cannot read would succeed, filing the conversation and
+ * every message in it under someone else's goal. The title is taken from the goal that
+ * was actually read back rather than from the selection, for the same reason.
+ */
+async function ensureGoalThread(goalId: string, goalTitle: string): Promise<Thread | null> {
   const existing = await findGoalThread(goalId);
   if (existing) return existing;
+
+  const { data: goal, error: goalError } = await supabase
+    .from('goals')
+    .select('id, title')
+    .eq('id', goalId)
+    .maybeSingle();
+  if (goalError) throw goalError;
+  if (!goal) return null;
 
   const userId = await sessionUserId();
   const row: TablesInsert<'threads'> = {
     user_id: userId,
     goal_id: goalId,
-    title: goalTitle.trim() || 'Goal',
+    title: goal.title.trim() || goalTitle.trim() || 'Goal',
     kind: 'goal',
   };
   const inserted = await supabase.from('threads').insert(row).select().single();
@@ -170,10 +187,13 @@ export function useThread(selection: ThreadSelection | null) {
     staleTime: 60 * 60 * 1000,
     queryFn: async (): Promise<Thread> => {
       if (!selection) throw new Error('No thread selected.');
+      // A goal that cannot be read is not an error — it is a stale remembered
+      // selection — so the log is opened instead, which is where a first open lands.
       const thread =
         selection.kind === 'daily_log'
           ? await ensureDailyLog()
-          : await ensureGoalThread(selection.goalId, selection.goalTitle);
+          : ((await ensureGoalThread(selection.goalId, selection.goalTitle)) ??
+            (await ensureDailyLog()));
       // The thread list is what search uses for titles; keep it in step without a
       // refetch when a new goal thread appears.
       queryClient.setQueryData<Thread[]>(chatKeys.threads, (old) =>
@@ -256,13 +276,15 @@ export type SendMessageInput = {
    * optimistic bubble exactly where the real row will be.
    */
   createdAt?: string;
+  /** Who was signed in when this was written, for the same reason as NewTask.userId. */
+  userId?: string;
 };
 
 const sendMessageOptions = {
   mutationKey: chatMutationKeys.send,
   mutationFn: async (input: SendMessageInput): Promise<Message> => {
     const id = input.id ?? clientId();
-    const userId = await sessionUserId();
+    const userId = await sessionUserId(input.userId);
 
     const row: TablesInsert<'messages'> = {
       id,
@@ -300,8 +322,14 @@ const sendMessageOptions = {
  * connection, which is retried silently. It is an option on the hook rather than
  * on each mutate() call because per-call callbacks only fire for the observer's
  * latest mutation, and two quick sends would lose the first one's message.
+ *
+ * It is handed the variables as well as the message. A refused row takes its
+ * optimistic bubble down with it, and the words in that bubble exist nowhere else —
+ * the composer emptied itself the moment they were sent. The screen puts them back.
  */
-export function useSendMessage(options: { onRejected?: (message: string) => void } = {}) {
+export function useSendMessage(
+  options: { onRejected?: (message: string, input: SendMessageInput) => void } = {},
+) {
   const { user } = useAuth();
   const userId = user?.id ?? '';
   const { onRejected } = options;
@@ -325,20 +353,21 @@ export function useSendMessage(options: { onRejected?: (message: string) => void
     },
     onError: (error, input) => {
       sendMessageOptions.onError(error, input);
-      onRejected?.(error.message);
+      onRejected?.(error.message, input);
     },
   });
 
-  // The id and timestamp are fixed at the tap, in the variables, for the reasons on
-  // SendMessageInput.
+  // The id, the timestamp and the owner are fixed at the tap, in the variables, for
+  // the reasons on SendMessageInput.
   const { mutate: rawMutate, mutateAsync: rawMutateAsync } = result;
   const stamp = useCallback(
     (input: SendMessageInput): SendMessageInput => ({
       ...input,
       id: input.id ?? clientId(),
       createdAt: input.createdAt ?? new Date().toISOString(),
+      userId: input.userId ?? userId,
     }),
-    [],
+    [userId],
   );
   const mutate = useCallback<typeof rawMutate>(
     (input, opts) => rawMutate(stamp(input), opts),
@@ -442,7 +471,7 @@ export function useLinkedTask(taskId: string | null) {
 
 /**
  * Makes a queued send replayable after a restart. See registerTaskMutationDefaults
- * in src/api/tasks.ts; this belongs in setupOutbox() beside it.
+ * in src/api/tasks.ts; called from setupOutbox() beside it.
  */
 export function registerChatMutationDefaults(): void {
   queryClient.setMutationDefaults(chatMutationKeys.send, sendMessageOptions);

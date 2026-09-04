@@ -7,7 +7,12 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { QueryClient, type Mutation } from '@tanstack/react-query';
+import {
+  QueryClient,
+  defaultShouldDehydrateQuery,
+  type Mutation,
+  type Query,
+} from '@tanstack/react-query';
 import type { PersistQueryClientProviderProps } from '@tanstack/react-query-persist-client';
 
 import { OUTBOX_MUTATION_DEFAULTS, shouldPersistMutation } from '@/lib/outbox';
@@ -62,6 +67,24 @@ function isRestorable(mutation: Mutation): boolean {
 }
 
 /**
+ * Which queries survive an app restart: everything the default keeps, except the
+ * signed playback URLs.
+ *
+ * Those are short-lived credentials for a private bucket, good for an hour, and their
+ * short gcTime does not survive this trip: dehydrate stores the state and the key, not
+ * the options, so a hydrated query comes back with the client's one-day default and the
+ * persister's 24-hour maxAge as its only bound. A cold start five hours later would
+ * hand the player a URL that expired four hours ago, and — because a paused refetch
+ * never sets `error` — it would spin instead of saying so. Minting a fresh one costs a
+ * single request, and until then nothing is written to disk that could be replayed by
+ * anyone who reads it.
+ */
+function shouldPersistQuery(query: Query): boolean {
+  if (query.queryKey[0] === 'voice-notes' && query.queryKey[1] === 'signed-url') return false;
+  return defaultShouldDehydrateQuery(query);
+}
+
+/**
  * Everything PersistQueryClientProvider needs. Defined once, here, so the persister
  * and the root layout cannot disagree about what is persisted.
  */
@@ -70,6 +93,7 @@ export const persistOptions: PersistQueryClientProviderProps['persistOptions'] =
   dehydrateOptions: {
     shouldDehydrateMutation: (mutation) =>
       shouldPersistMutation(mutation.state, isRestorable(mutation)),
+    shouldDehydrateQuery: shouldPersistQuery,
   },
   hydrateOptions: {
     defaultOptions: {

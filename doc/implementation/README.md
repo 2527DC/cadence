@@ -88,7 +88,7 @@ CLI:
 
 ```bash
 node supabase/db.mjs reset    # the equivalent of `supabase db reset`
-node supabase/db.mjs test     # 82 assertions proving the record cannot be falsified
+node supabase/db.mjs test     # 86 assertions proving the record cannot be falsified
 node supabase/gen-types.mjs   # the equivalent of `supabase gen types typescript`
 ```
 
@@ -111,17 +111,26 @@ What this defers: real sign-up (GoTrue) until **P02**, and actual audio bytes un
 | P02 | ✅ [Auth and app shell](completed/P02-auth-and-app-shell.md) | P00, P01 | — | 1 day |
 | P03 | ✅ [Goals](completed/P03-goals.md) | P02 | — | 1 day |
 | P04 | 🟡 [Weekly planner and finalization](pending/P04-weekly-planner-and-finalization.md) | P03 | **OQ-3**, OQ-8 | 2 days |
-| P05 | 🟡 [Task closing with mandatory note](pending/P05-task-closing-flow.md) | P04 | — | 2 days |
-| P06 | [Voice recording and storage](pending/P06-voice-recording-and-storage.md) | P02 | — | 2 days |
+| P05 | ✅ [Task closing with mandatory note](completed/P05-task-closing-flow.md) | P04 | — | 2 days |
+| P06 | 🟡 [Voice recording and storage](pending/P06-voice-recording-and-storage.md) | P02 | — | 2 days |
 | P07 | [Speech-to-text](pending/P07-speech-to-text.md) | P06 | **OQ-5** | 1.5 days |
-| P08 | [Chat log](pending/P08-chat-log.md) | P06, P07 | **OQ-4** | 2 days |
+| P08 | 🟡 [Chat log](pending/P08-chat-log.md) | P06, P07 | **OQ-4** | 2 days |
 | P09 | 🟡 [Analytics dashboard](pending/P09-analytics-dashboard.md) | P05 | OQ-2, OQ-7 | 3 days |
-| P10 | [Offline sync and outbox](pending/P10-offline-sync-outbox.md) | P05, P06 | — | 2 days |
-| P11 | [Notifications and weekly review](pending/P11-notifications-weekly-review.md) | P09 | OQ-10 | 1 day |
-| P12 | [Polish, testing, release](pending/P12-polish-testing-release.md) | all | — | 2 days |
+| P10 | 🟡 [Offline sync and outbox](pending/P10-offline-sync-outbox.md) | P05, P06 | — | 2 days |
+| P11 | 🟡 [Notifications and weekly review](pending/P11-notifications-weekly-review.md) | P09 | OQ-10 | 1 day |
+| P12 | 🟡 [Polish, testing, release](pending/P12-polish-testing-release.md) | all | — | 2 days |
 | P13 | [iOS native build — lifts the Expo Go ceiling](pending/P13-ios-native-build.md) | P06 | **OQ-11** | 0.5 day + $99/yr, or won't-do |
 
 **Legend:** ✅ done and closed out · 🟡 core built, acceptance criteria not all met — see the progress note at the bottom of the file.
+
+> **Why so much amber (2026-09-04).** Every phase from P04 to P12 is built, typechecks,
+> lints and passes its unit tests, and the database's 86 assertions pass too. What has
+> not happened is any of it running: **the app has never been opened on the iPhone, and
+> no iOS bundle has been produced.** The criteria still unticked are almost entirely
+> "watch it work" ones — smooth at 50 tasks, airplane mode for a day, a notification
+> arriving on a Sunday evening, the dashboard under 500ms. Each 🟡 file ends with a
+> Progress note listing exactly which ones, so a session with the phone in hand can
+> close several of them in an afternoon.
 
 Bold decisions are the ones that are expensive to change later — they become schema columns
 or phase scope. The rest can be revisited freely.

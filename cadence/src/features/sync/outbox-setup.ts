@@ -7,7 +7,10 @@
 //   2. Watch the mutation cache for rejections with nobody left to show them.
 //   3. Replay the queue once the cache has been restored.
 
+import { registerChatMutationDefaults } from '@/api/chat';
+import { pruneLocalCache, retryPendingUploads } from '@/features/voice/recovery';
 import { registerGoalMutationDefaults } from '@/api/goals';
+import { registerReviewMutationDefaults } from '@/api/reviews';
 import { registerTaskMutationDefaults } from '@/api/tasks';
 import { replayOrder } from '@/lib/outbox';
 import { queryClient } from '@/lib/query-client';
@@ -26,6 +29,12 @@ export function setupOutbox(): void {
 
   registerTaskMutationDefaults();
   registerGoalMutationDefaults();
+  // Chat sends (P08) and weekly reviews (P11) replay through the same queue. Every
+  // replayable mutation is registered here and nowhere else: a write restored from
+  // disk is rebuilt from these defaults, so one missing line means that write comes
+  // back with no mutationFn and is dropped without a word.
+  registerChatMutationDefaults();
+  registerReviewMutationDefaults();
 
   // Which mutations were ever paused. A write that failed straight away, online,
   // failed in front of the screen that made it, and that screen shows the message
@@ -77,6 +86,19 @@ export async function resumeOutbox(): Promise<void> {
   );
   await Promise.all(pending.map((m) => m.continue().catch(() => {})));
   await queryClient.invalidateQueries();
+
+  // P06 left the orphan sweep for P10's launch hook, and this is it. A recording is
+  // written to disk with a sidecar *before* its upload starts, so an app killed
+  // mid-upload — or mid-record — leaves audio on the phone with no row behind it.
+  // This turns those back into rows. Anything that still fails is left exactly where
+  // it is: a recording is never deleted to tidy up.
+  //
+  // Deliberately not awaited by the caller and never allowed to throw. This runs on
+  // every cold start, and a phone with no signal must not have its startup blocked by
+  // an upload that was always going to fail.
+  void retryPendingUploads()
+    .then(() => pruneLocalCache())
+    .catch(() => {});
 }
 
 /** How many writes have not reached the server yet. For the sign-out flow to ask before discarding them. */

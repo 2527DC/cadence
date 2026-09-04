@@ -35,7 +35,7 @@ import {
   useWeekTasks,
   type Task,
 } from '@/api/tasks';
-import { Button, Card, EmptyState, Loading, Text } from '@/components/ui';
+import { Button, EmptyState, ErrorState, Loading } from '@/components/ui';
 import { AddTaskRow, type NewDraft } from '@/features/planner/add-task-row';
 import {
   buildSections,
@@ -48,6 +48,10 @@ import { WeekHeader } from '@/features/planner/week-header';
 import { CloseTaskSheet } from '@/features/tasks/close-task-sheet';
 import { hapticCommit, hapticReject } from '@/lib/haptics';
 import { currentWeekStart, shiftWeek, wouldBeLateAdd } from '@/lib/week';
+
+// One bad screen must not take the app with it. expo-router wraps this route in the
+// boundary below, so a throw here leaves the tab bar and every other tab alive.
+export { ScreenErrorBoundary as ErrorBoundary } from '@/components/error-boundary';
 
 // Stable empties, so a week with no rows yet does not hand the memoised rows a fresh
 // array on every render.
@@ -82,7 +86,6 @@ export default function WeekScreen() {
   // Re-read on every render rather than memoised, so a screen left open across
   // Sunday midnight starts treating the week as past the next time anything changes.
   const thisWeek = currentWeekStart();
-  const isThisWeek = weekStart === thisWeek;
   const readOnly = isPastWeek(weekStart, thisWeek);
 
   const rows = tasks.data ?? NO_TASKS;
@@ -107,7 +110,9 @@ export default function WeekScreen() {
       const [first] = targets;
       if (!first) return;
       const one = targets.length === 1;
-      const late = isThisWeek && wouldBeLateAdd();
+      // The task's own week decides this, not today's weekday: committing to a week
+      // that has not started yet is planning ahead, and is never a late add.
+      const late = wouldBeLateAdd(weekStart);
 
       Alert.alert(
         one ? `Commit “${first.title}”?` : `Commit ${targets.length} tasks?`,
@@ -142,7 +147,7 @@ export default function WeekScreen() {
         ],
       );
     },
-    [isThisWeek, finalizeMutate],
+    [weekStart, finalizeMutate],
   );
 
   const commitOne = useCallback((task: Task) => confirmCommit([task]), [confirmCommit]);
@@ -291,11 +296,11 @@ export default function WeekScreen() {
           tasks.isPending ? (
             <Loading label="Loading the week" />
           ) : tasks.error ? (
-            <Card className="mt-6">
-              <Text className="text-status-n dark:text-status-n-dark">
-                {messageOf(tasks.error)}
-              </Text>
-            </Card>
+            <ErrorState
+              title="The week could not be loaded"
+              message={messageOf(tasks.error)}
+              onRetry={() => void tasks.refetch()}
+            />
           ) : (
             <EmptyState
               title="Nothing planned"

@@ -67,8 +67,13 @@ export function useVoiceNote(id: string) {
  *
  * The bucket is private (0012), so playback needs a URL that carries its own
  * authorisation. It is good for an hour; React Query treats it as fresh for
- * fifty-five minutes and forgets it entirely at the hour, so the persisted cache
- * can never hand a cold-started app a URL that has already expired.
+ * fifty-five minutes and drops it at the hour.
+ *
+ * That only holds while the app is running. gcTime is an option, and dehydrate stores
+ * state and keys rather than options, so a persisted copy would come back with the
+ * client's one-day default and outlive the URL it holds. These queries are therefore
+ * excluded from the persisted cache — see shouldPersistQuery in src/lib/query-client.ts
+ * — and a cold start mints a fresh URL instead of replaying an expired one.
  */
 export function useVoiceNoteSignedUrl(path: string | null | undefined) {
   return useQuery({

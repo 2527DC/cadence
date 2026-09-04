@@ -92,7 +92,12 @@ describe('pages', () => {
     const a = row('a', '2026-09-04T10:00:00Z');
     const b = row('b', '2026-09-04T09:00:00Z');
     const c = row('c', '2026-09-04T08:00:00Z');
-    expect(flattenPages([[a, b], [b, c]])).toEqual([a, b, c]);
+    expect(
+      flattenPages([
+        [a, b],
+        [b, c],
+      ]),
+    ).toEqual([a, b, c]);
     expect(flattenPages(undefined)).toEqual([]);
   });
 });

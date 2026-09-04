@@ -4,16 +4,28 @@ Personal application projects.
 
 ## Cadence — weekly goals and consistency tracker
 
-**Status: building.** The database (P01), auth and shell (P02) and goals (P03) are done.
-The core loop — plan a week, commit it, close tasks with a note — works end to end, though
-P04, P05 and P09 have acceptance criteria still open. **Not yet run on a physical iPhone.**
+**Status: feature-complete on paper, unproven in the hand (2026-09-04).**
+Closed out: the database (P01), auth and shell (P02), goals (P03) and task closing (P05).
+Built but not signed off: the planner (P04), voice notes (P06), the chat log (P08), the
+dashboard (P09), the offline outbox (P10), notifications and the weekly review (P11), and
+the polish pass (P12) — each has a completion record and a progress note saying exactly
+what is left. Not built at all: speech-to-text (P07), which Expo Go cannot support, and
+the native iOS build (P13) that would lift that ceiling.
+
+`npx tsc --noEmit`, `npm run lint` and `npx jest` (268 assertions) are green, and the
+database's 86 assertions pass. **The app has never been opened on the iPhone, and no iOS
+bundle has been produced.** Most of what is still unticked is a thing you can only find
+out by holding the phone.
 
 A private weekly goal-and-task tracker where nothing you commit to can ever be deleted, only
 closed with an honest status (`C` / `N` / `NC`) and a mandatory written or spoken note.
-Voice notes are transcribed on-device and stored permanently. The whole record feeds a
-dashboard of progress and consistency.
+Voice notes are recorded, stored permanently and played back — *not* transcribed: on-device
+speech-to-text needs a native module Expo Go does not ship, so transcripts and transcript
+search wait for [P13](doc/implementation/pending/P13-ios-native-build.md). The whole record
+feeds a dashboard of progress and consistency.
 
 Stack: **Expo (React Native) + TypeScript + Supabase**.
+The app lives in [`cadence/`](cadence/README.md) — start there to run it on the phone.
 
 ---
 
@@ -24,12 +36,15 @@ Stack: **Expo (React Native) + TypeScript + Supabase**.
 | [doc/00-app-name-options.md](doc/00-app-name-options.md) | **Pick the name.** "Cadence" is a placeholder. |
 | [doc/implementation/README.md](doc/implementation/README.md) | **The 13-phase build plan.** Decisions are asked inside each phase file. |
 | [doc/07-skills-and-tooling.md](doc/07-skills-and-tooling.md) | **Install the plugins** before any code is written. |
-| [supabase/README.md](supabase/README.md) | **The database.** How to rebuild it, and why it runs on local Postgres. |
+| [supabase/README.md](supabase/README.md) | **The database.** How to rebuild it, why it runs on local Postgres, and how to back it up. |
+| [cadence/README.md](cadence/README.md) | **The app.** How to run it on the phone, the two `.env.local` files, and the four commands. |
+| [cadence/AGENTS.md](cadence/AGENTS.md) | **Before writing any app code.** SDK 54 not 57, and the rules that are not negotiable. |
 
 ---
 
-> **Work in progress:** see [doc/RESUME.md](doc/RESUME.md) — a multi-agent run was stopped
-> part-way on 2026-09-04. Five phases landed, two did not, and the work is uncommitted.
+> **Where to pick this up:** [doc/RESUME.md](doc/RESUME.md). Everything in the working
+> tree is **uncommitted**, and the next useful hour is spent with the phone, not the
+> keyboard.
 
 ## Documents
 
@@ -46,8 +61,8 @@ doc/
 ├── 08-open-questions.md           Index of which phase asks which decision
 └── implementation/
     ├── README.md                  Workflow + phase table. Decisions live in phase files
-    ├── pending/                   P00, P02 … P13
-    └── completed/                 P01
+    ├── pending/                   P00, P04, P06 … P13 (each ends with a progress note)
+    └── completed/                 P01, P02, P03, P05 (each ends with a completion record)
 ```
 
 ```
@@ -55,9 +70,9 @@ supabase/                          The database. Where the app's promise is enfo
 ├── README.md                      How to run it, and the rules the tests hold in place
 ├── db.mjs                         reset / migrate / seed / test / status / psql
 ├── gen-types.mjs                  regenerates cadence/src/types/database.types.ts
-├── migrations/                    0001 … 0012, transplantable to hosted Supabase
+├── migrations/                    0001 … 0015, transplantable to hosted Supabase
 ├── local/                         auth.* and storage.* shims. Local only.
-├── tests/                         82 assertions that try to falsify the record
+├── tests/                         86 assertions that try to falsify the record
 └── seed.sql                       4 weeks of history, including an honest correction
 ```
 
@@ -76,9 +91,14 @@ side are therefore trustworthy, which is the entire point.
 
 ## Project-local skills
 
-`.claude/skills/requirement-critic/` — critiques a requirement before it gets built:
-hidden assumptions, unspecified edge cases, conflicts with existing docs, how it could be
-simpler, and a ship / refine / reconsider verdict.
+In `.claude/skills/`:
+
+| Skill | What it is for |
+|---|---|
+| `cadence-domain` | **Load before touching tasks, goals, closing or the dashboard.** The rules that cannot be violated: the statuses, what the database will refuse, the week boundary, and the analytics definitions. Written from the schema, not from the plan. |
+| `requirement-critic` | Critiques a requirement before it gets built: hidden assumptions, unspecified edge cases, conflicts with existing docs, how it could be simpler, and a ship / refine / reconsider verdict. |
+| `routine-analyst` | Reads the raw notes in `context/raw/` and maintains an evidence-backed model of the days in `context/profile.md`. |
+| `supabase`, `supabase-postgres-best-practices` | Installed from the marketplace (see `skills-lock.json`). Load before any schema, RLS or migration work. |
 
 ```
 use the requirement-critic skill on <your idea>

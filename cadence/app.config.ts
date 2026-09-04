@@ -29,6 +29,17 @@ const config: ExpoConfig = {
       // string belongs with its sibling above.
       NSSpeechRecognitionUsageDescription:
         'Cadence transcribes your voice notes so you can search what you said.',
+      // NOTE — notifications. iOS has no Info.plist usage-description key for them:
+      // the only explanation a person ever sees is whatever the app says *before* it
+      // triggers the system prompt. That sentence lives in the Reminders card on the
+      // weekly review screen (src/features/notifications/reminder-settings.tsx), which
+      // is the one place permission is ever asked for. It promises exactly two local
+      // notifications — Sunday 20:00 IST to review, Monday 09:00 IST to plan — and
+      // nothing else, which is what the app actually schedules (OQ-10, P11).
+      //
+      // Declared honestly so the App Store review does not have to ask: this app ships
+      // no encryption of its own beyond the HTTPS every app uses.
+      ITSAppUsesNonExemptEncryption: false,
     },
   },
 
@@ -64,6 +75,11 @@ const config: ExpoConfig = {
     'expo-secure-store',
     // Microphone access for voice notes (P06). The usage string is in infoPlist below.
     'expo-audio',
+    // The two weekly reminders (P11). Local notifications only — no APNs key, no push
+    // server, and `enableBackgroundRemoteNotifications` stays off because nothing ever
+    // arrives from a server. Ignored entirely in Expo Go, where config plugins do not
+    // run; it is here so the native build in P13 is configured the same way.
+    'expo-notifications',
   ],
 
   experiments: {

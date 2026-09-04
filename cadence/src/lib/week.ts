@@ -72,13 +72,20 @@ export function isToday(date: Date): boolean {
 }
 
 /**
- * A task finalized after Wednesday of its own week is a "late add".
+ * A task finalized after Wednesday **of its own week** is a "late add".
  *
- * The database computes this itself in mark_late_add() and ignores whatever the client
- * sends, so this is only ever used to warn someone *before* they commit. Never trust it
- * as the answer — read `late_add` back from the row.
+ * The week matters as much as the weekday. Planning next week's tasks on a Saturday is
+ * planning ahead, not padding, so it must not be recorded as a late add — which is why
+ * this takes the week the task belongs to and answers false for every week but the
+ * current one. A week that has not started yet can never be added to late.
+ *
+ * The database computes the stored value itself in mark_late_add() and ignores whatever
+ * the client sends, so this is only ever used to warn someone *before* they commit, and
+ * to keep the optimistic row from flickering. Never trust it as the answer — read
+ * `late_add` back from the row.
  */
-export function wouldBeLateAdd(now: Date = todayInAppTimezone()): boolean {
+export function wouldBeLateAdd(weekStart: DateString, now: Date = todayInAppTimezone()): boolean {
+  if (weekStart !== toDateString(mondayOf(now))) return false;
   const isoDay = now.getDay() === 0 ? 7 : now.getDay(); // Sunday is 0 in JS, 7 in ISO
   return isoDay > 3;
 }

@@ -55,7 +55,7 @@ npm run typecheck    # tsc --noEmit
 npm run lint
 npm test             # jest, pure logic only
 
-node ../supabase/db.mjs test    # 82 assertions against the local database
+node ../supabase/db.mjs test    # 86 assertions against the local database
 node ../supabase/db.mjs migrate # apply migrations (uses DATABASE_URL)
 node ../supabase/gen-types.mjs  # regenerate src/types/database.types.ts
 ```

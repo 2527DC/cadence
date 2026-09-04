@@ -77,7 +77,7 @@ export function AttachSheet({
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={onClose}>
-      <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark">
+      <SafeAreaView className="bg-bg dark:bg-bg-dark flex-1">
         <ScrollView contentContainerClassName="px-gutter py-6" keyboardShouldPersistTaps="handled">
           <Text variant="title">Link to</Text>
           <Text variant="meta" className="mt-1">

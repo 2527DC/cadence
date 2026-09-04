@@ -11,6 +11,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Text } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-provider';
 
+// One bad screen must not take the app with it. expo-router wraps this route in the
+// boundary below, so a throw here leaves the tab bar and every other tab alive.
+export { ScreenErrorBoundary as ErrorBoundary } from '@/components/error-boundary';
+
 const INPUT =
   'min-h-[48px] rounded-card border border-border bg-surface px-4 text-base text-ink dark:border-border-dark dark:bg-surface-dark dark:text-ink-dark';
 
@@ -54,15 +58,13 @@ export default function SignInScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark">
+    <SafeAreaView className="bg-bg dark:bg-bg-dark flex-1">
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerClassName="flex-grow justify-center px-gutter py-10"
-          keyboardShouldPersistTaps="handled"
-        >
+          keyboardShouldPersistTaps="handled">
           <Text variant="title">Cadence</Text>
           <Text variant="meta" className="mt-2">
             A week you commit to, and a record that cannot be edited afterwards.
@@ -71,7 +73,7 @@ export default function SignInScreen() {
           <Card className="mt-8">
             {step === 'email' ? (
               <View className="gap-3">
-                <Text variant="micro" className="uppercase tracking-wider">
+                <Text variant="micro" className="tracking-wider uppercase">
                   Step 1 of 2
                 </Text>
                 <Text variant="heading">What is your email?</Text>
@@ -104,14 +106,14 @@ export default function SignInScreen() {
               </View>
             ) : (
               <View className="gap-3">
-                <Text variant="micro" className="uppercase tracking-wider">
+                <Text variant="micro" className="tracking-wider uppercase">
                   Step 2 of 2
                 </Text>
                 <Text variant="heading">Enter the code</Text>
                 <Text variant="meta">Sent to {email.trim()}. It expires in a few minutes.</Text>
 
                 <TextInput
-                  className={`${INPUT} mt-2 text-center text-2xl tracking-[8px]`}
+                  className={`${INPUT} mt-2 text-2xl text-center tracking-[8px]`}
                   value={code}
                   onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
                   placeholder="000000"

@@ -12,11 +12,25 @@ import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Card, Loading, STATUS_META, StatusPill, Text } from '@/components/ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  Loading,
+  STATUS_META,
+  StatusPill,
+  Text,
+  errorText,
+} from '@/components/ui';
 import { useTaskHistory, useWeekTasks, type StatusEvent, type Task } from '@/api/tasks';
 import { CloseTaskSheet } from '@/features/tasks/close-task-sheet';
 import { VoiceNotePlayer } from '@/features/voice';
 import { formatWeekRange, weekStartOf } from '@/lib/week';
+
+// One bad screen must not take the app with it. expo-router wraps this route in the
+// boundary below, so a throw here leaves the tab bar and every other tab alive.
+export { ScreenErrorBoundary as ErrorBoundary } from '@/components/error-boundary';
 
 export default function TaskDetailScreen() {
   const { id, week } = useLocalSearchParams<{ id: string; week?: string }>();
@@ -41,11 +55,18 @@ export default function TaskDetailScreen() {
         </Pressable>
 
         {tasks.isPending ? (
-          <Loading />
+          <Loading label="Loading the task" />
+        ) : tasks.error && !task ? (
+          <ErrorState
+            title="This task could not be loaded"
+            message={errorText(tasks.error)}
+            onRetry={() => void tasks.refetch()}
+          />
         ) : !task ? (
-          <Card className="mt-6">
-            <Text>That task is not in this week.</Text>
-          </Card>
+          <EmptyState
+            title="Not in this week"
+            body="This task belongs to another week. Open it from that week on the planner, or from the weekly review it was closed in."
+          />
         ) : (
           <>
             <View className="mt-4 gap-3 flex-row items-start justify-between">
@@ -90,7 +111,13 @@ export default function TaskDetailScreen() {
             </Text>
 
             {history.isPending ? (
-              <Loading />
+              <Loading label="Reading the history" />
+            ) : history.error ? (
+              <ErrorState
+                title="The history could not be read"
+                message={errorText(history.error)}
+                onRetry={() => void history.refetch()}
+              />
             ) : (history.data?.length ?? 0) === 0 ? (
               <Card className="mt-2">
                 <Text variant="meta">

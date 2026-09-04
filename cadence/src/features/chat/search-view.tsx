@@ -38,8 +38,8 @@ function ResultRow({
       }}
       className="active:opacity-70">
       <Card className="mb-2">
-        <View className="flex-row items-center justify-between gap-2">
-          <Text variant="micro" className="font-semibold uppercase tracking-wider">
+        <View className="gap-2 flex-row items-center justify-between">
+          <Text variant="micro" className="font-semibold tracking-wider uppercase">
             {threadTitle}
           </Text>
           <Text variant="micro">
@@ -78,9 +78,9 @@ export function SearchView({
   return (
     <View className="flex-1">
       <View className="px-gutter pt-2">
-        <View className="flex-row items-center gap-2">
+        <View className="gap-2 flex-row items-center">
           <TextInput
-            className="min-h-[44px] flex-1 rounded-[22px] border border-border bg-surface px-4 text-base text-ink dark:border-border-dark dark:bg-surface-dark dark:text-ink-dark"
+            className="border-border bg-surface px-4 text-base text-ink dark:border-border-dark dark:bg-surface-dark dark:text-ink-dark min-h-[44px] flex-1 rounded-[22px] border"
             value={query}
             onChangeText={setQuery}
             placeholder="Search what you wrote"
@@ -98,7 +98,7 @@ export function SearchView({
           </Pressable>
         </View>
 
-        <View className="mt-2 flex-row gap-2">
+        <View className="mt-2 gap-2 flex-row">
           <Chip label="All threads" on={!scoped} onPress={() => setScoped(false)} />
           {currentThread ? (
             <Chip label={currentThread.title} on={scoped} onPress={() => setScoped(true)} />

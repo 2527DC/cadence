@@ -10,11 +10,25 @@ import { useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { RootErrorBoundary } from '@/components/error-boundary';
 import { AuthProvider, useAuth } from '@/features/auth/auth-provider';
+// Imported by its own path rather than through the feature's barrel: the barrel also
+// exports the review screen's cards, which pull in the whole voice module, and none of
+// that belongs in the startup graph.
+import { NotificationsBridge } from '@/features/notifications/bridge';
 import { startNetworkSync } from '@/features/sync/network';
 import { resumeOutbox, setupOutbox } from '@/features/sync/outbox-setup';
 import { SyncBanner } from '@/features/sync/sync-banner';
 import { persistOptions, queryClient } from '@/lib/query-client';
+
+/**
+ * The root boundary. expo-router wraps this layout route in it, which puts it outside
+ * every provider below — so a throw in the query client, the auth provider, the theme
+ * or the navigator itself still draws something a person can read and retry, instead
+ * of a white screen. See src/components/error-boundary.tsx for why it uses no
+ * NativeWind classes.
+ */
+export { RootErrorBoundary as ErrorBoundary };
 
 // Hold the splash screen until we know whether there is a session. Without this the
 // sign-in screen appears for a frame on every cold start, even when signed in —
@@ -24,6 +38,7 @@ void SplashScreen.preventAutoHideAsync();
 // Register the replayable mutations before anything can hydrate the persisted cache.
 // A mutation that was queued offline and survived a restart is rebuilt from what is
 // registered here; hydrate it first and it comes back with no function to run.
+// Tasks, goals, chat sends and weekly reviews all register inside setupOutbox().
 setupOutbox();
 
 // Runs once, after the persisted cache has been read back — the earliest moment a
@@ -48,11 +63,19 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isRestoring) return;
 
-    const inTabs = segments[0] === '(tabs)';
+    // The guard is about the sign-in screen, not about the tabs. Signed out, every
+    // route but sign-in is off limits; signed in, sign-in is the only one that is.
+    //
+    // P11 note: this used to bounce anything outside `(tabs)` back to `/`, which meant
+    // /task/[id] and /review/[week] could not be opened at all — a notification tap
+    // landed on the review and was immediately replaced by the planner. Deep-linking
+    // to the review is a P11 acceptance criterion, so the condition is stated in terms
+    // of the auth flow instead.
+    const inAuthFlow = segments[0] === 'sign-in';
 
-    if (!session && inTabs) {
+    if (!session && !inAuthFlow) {
       router.replace('/sign-in');
-    } else if (session && !inTabs) {
+    } else if (session && inAuthFlow) {
       router.replace('/');
     }
 
@@ -87,6 +110,11 @@ export default function RootLayout() {
                 <RouteGuard>
                   <View style={{ flex: 1 }}>
                     <SyncBanner />
+                    {/* Renders nothing. Reschedules the two reminders on start, and
+                        routes a notification tap — including the one that launched the
+                        app from cold. Inside the guard so it has a session and a
+                        mounted navigator to work with. */}
+                    <NotificationsBridge />
                     <Stack screenOptions={{ headerShown: false }}>
                       <Stack.Screen name="(tabs)" />
                       <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />

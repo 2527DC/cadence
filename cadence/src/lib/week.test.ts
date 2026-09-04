@@ -121,9 +121,11 @@ describe('formatWeekRange', () => {
 });
 
 describe('wouldBeLateAdd', () => {
-  // Wednesday is isodow 3. Finalizing on Thursday or later is a late add. This only
-  // ever warns the user in advance — mark_late_add() in migration 0006 computes the
-  // stored value and ignores anything the client sends.
+  // Wednesday is isodow 3. Finalizing on Thursday or later, in the week the task is
+  // for, is a late add. This only ever warns the user in advance — mark_late_add() in
+  // migration 0006 computes the stored value and ignores anything the client sends.
+  const WEEK = '2026-08-31'; // the Monday of every day below
+
   it.each([
     ['2026-08-31', false], // Monday
     ['2026-09-01', false], // Tuesday
@@ -132,6 +134,16 @@ describe('wouldBeLateAdd', () => {
     ['2026-09-05', true], // Saturday
     ['2026-09-06', true], // Sunday
   ])('%s -> %s', (day, expected) => {
-    expect(wouldBeLateAdd(new Date(`${day}T09:00:00`))).toBe(expected);
+    expect(wouldBeLateAdd(WEEK, new Date(`${day}T09:00:00`))).toBe(expected);
+  });
+
+  // The rule is about the task's own week, not about what day it happens to be.
+  it('is never late for a week that has not started yet', () => {
+    // Saturday, planning the week after: planning ahead, not padding.
+    expect(wouldBeLateAdd('2026-09-07', new Date('2026-09-05T09:00:00'))).toBe(false);
+  });
+
+  it('is never late for a week that has already finished', () => {
+    expect(wouldBeLateAdd('2026-08-24', new Date('2026-09-05T09:00:00'))).toBe(false);
   });
 });

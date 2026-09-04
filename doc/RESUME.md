@@ -1,114 +1,156 @@
-# Resume state — 2026-09-04, 00:30 IST
+# Resume state — 2026-09-04, 09:05 IST
 
-A multi-agent workflow was building the remaining phases and was **stopped by the user
-mid-run**. This file records exactly where it stopped, what is safe, and how to pick it
-back up. Delete it once the work is finished.
+The second multi-agent run (`cadence-finish`) was **stopped by the user at 7 of 8 agents**.
+This file records what landed, where it halted, and what is left. Delete it when the work
+is finished.
+
+Supersedes the earlier RESUME.md from the first interrupted run; that run's gaps (P08 and
+P11) are now closed.
 
 ---
 
 ## One-line status
 
-Five of seven build agents finished; two were cut off. **The tree typechecks with zero
-errors** and nothing is half-written in a way that breaks the build — but the work is
-uncommitted, unreviewed, and unverified beyond `tsc`.
+Every phase except P12 polish has been built and merged. **`npx tsc --noEmit` is clean at
+0 errors.** Lint and the jest suite passed at the integration step but have not been re-run
+since the fix agent's changes. Nothing has ever run on a device.
 
 ---
 
-## What the run produced
+## Where it halted, precisely
 
-| Agent | Phase | State | Left behind |
-|---|---|---|---|
-| P04 | Weekly planner | ✅ reported | `features/planner/` (6 files), rewrote `(tabs)/index.tsx` |
-| P05 | Task closing | ✅ reported | `features/closing/` (2), rewrote `close-task-sheet.tsx`, `task/[id].tsx` |
-| P06 | Voice recording | ✅ reported | `features/voice/` (13), `api/voice-notes.ts` |
-| P09 | Analytics | ✅ reported | `features/analytics/` (6), rewrote `api/analytics.ts`, `dashboard.tsx` |
-| P10 | Offline outbox | ✅ reported | `features/sync/` (6), `lib/outbox.ts` + test, rewrote `api/tasks.ts`, `api/goals.ts`, `lib/query-client.ts`, `_layout.tsx` |
-| P08 | Chat log | ⚠️ **cut off** | `features/chat/` (9 files) + `api/chat.ts` written, but **`(tabs)/chat.tsx` is still the placeholder** — the feature is unreferenced |
-| P11 | Notifications + weekly review | ❌ **never started** | nothing: no `features/notifications/`, no `app/review/`, no `api/reviews.ts` |
+| # | Agent | Result |
+|---|---|---|
+| 1 | P08 chat | ✅ 16 done, 8 not done |
+| 2 | P11 notifications + weekly review | ✅ 21 done, 6 not done |
+| 3 | Integration (all 7 phases together) | ✅ tsc 0 errors · lint clean · **jest 12 suites / 266 tests** |
+| 4 | Review — domain rules | ✅ 5 findings |
+| 5 | Review — security | ✅ 4 findings |
+| 6 | Review — runtime / Expo Go | ✅ 4 findings |
+| 7 | Fix | ✅ 8 fixed, 2 correctly deferred |
+| 8 | **P12 polish** | ⛔ **stopped mid-run** |
 
-Everything after the build phase never ran: **Integrate, Review ×3, Fix, Polish (P12)**.
+P12 had already written the completion records and moved one file. It was interrupted
+during the remaining file moves.
+
+### What P12 finished before it stopped
+- Error boundary (`src/components/error-boundary.tsx`), wired into screens via
+  `export { ScreenErrorBoundary as ErrorBoundary }`
+- `ErrorState` + `errorText()` added to `ui.tsx`; screens migrated off ad-hoc error text
+- `KeyboardAvoidingView` added where forms were covered (e.g. the new-goal sheet)
+- **Completion records appended** to P04, P06, P08, P09, P10, P11, P12
+- Moved **P05** into `doc/implementation/completed/`
+
+### What P12 did not finish
+- Moving P04, P06, P08, P09, P10, P11 out of `pending/` (their records are written; the
+  `git mv` never happened)
+- Updating the phase table in `doc/implementation/README.md`
+- Updating the root `README.md` status line
+- `cadence/README.md` (how to run it on the phone, the two `.env.local` files)
+- Verifying `eas.json` exists with preview/production profiles for P13
+- The final `tsc` / `lint` / `jest` pass
 
 ---
 
-## What is verified, and what is not
+## What the reviews found, and what happened to each
+
+Thirteen findings across three lenses; low severity dropped, leaving 10 acted on.
+
+### Fixed in the app (by the fix agent)
+1. **`wouldBeLateAdd()` ignored the task's own week.** Planning ahead on a Saturday
+   stamped `late_add` on next week's tasks — permanently, since finalized tasks cannot be
+   edited. Now takes `weekStart` and answers false for any week but the current one.
+2. **A server-ended session left the cache on disk.** `onAuthStateChange` only set state;
+   a revoked or expired refresh token left user A's rows and queued writes for the next
+   account. Now clears on `SIGNED_OUT`.
+3. **The remembered chat thread leaked across accounts**, carrying the previous user's
+   goal title and UUID. Now namespaced per user id.
+4. **Signed playback URLs were persisted** and could be hydrated hours after expiry. No
+   longer dehydrated.
+5. **Correcting a close left the review showing the superseded note** — `onSettled` did
+   not invalidate the review's ledger query.
+6. **Archiving a goal never set `end_week`**, so an archived goal read as active forever
+   and froze a 0/target into `weekly_reviews.stats`.
+7. **`@react-navigation/native` was undeclared**, working only as a transitive dependency
+   of expo-router. Now an explicit dependency.
+8. **The weekly review spun forever** when `v_week_rollup` had nothing for that week.
+
+### Fixed in the database (by hand, migration 0015 — already applied to hosted)
+9. **The append-only ledger could be written directly.** `task_status_events` must hold an
+   INSERT grant, because `close_task()` is SECURITY INVOKER and appends as the caller — so
+   any client could insert an event that never happened. Now guarded by the same
+   transaction-local flag as the status flip.
+10. **`late_add` was client-supplied after all.** The trigger computed it from
+    `coalesce(new.finalized_at, now())`, and neither `finalized_at` nor `late_add` was
+    frozen after finalizing. Both now come from `now()` and are immutable once committed.
+
+The P01 tests missed 9 and 10 because they checked the operations the design talks about —
+UPDATE and DELETE on the ledger — and never a plain INSERT. Three assertions were added;
+both were mutation-checked (86 assertions now pass, and each fix has a test that goes red
+without it).
+
+---
+
+## Verified / not verified
 
 **Verified**
-- `npx tsc --noEmit` → **0 errors**
+- `npx tsc --noEmit` → 0 errors (checked after the stop)
+- Database: 86 assertions across 4 files, all green; migrations 0001–0015 applied to both
+  the local database and the hosted project `ewqmmnuxmndamisoxlsx`
 
-**Not verified — do these first on resume**
+**Not verified since the fix agent's changes**
 - `npm run lint`
-- `npx jest` (agents added `metrics.test.ts`, `group.test.ts`, `model.test.ts`,
-  `draft.test.ts`, `outbox.test.ts` — none have been run together)
-- `npx expo export --platform ios` — no bundle since the workflow started
-- Typed routes are **stale**. P05/P08/P11 may reference routes that do not exist in
-  `.expo/types/router.d.ts`. Regenerate by starting the dev server for ~50s.
-- Nothing has run on the phone. That was already true before this run.
+- `npx jest` (was 12 suites / 266 tests at the integration step)
+- No iOS bundle in this run — the user asked for code only
+- **Nothing has ever run on a phone or a simulator.** Every UI claim is unproven.
 
-Note that zero type errors does **not** mean the chat feature works — its nine files are
-currently imported by nothing, so TypeScript never checks them against a consumer.
+Typed routes are still stale: `.expo/types/router.d.ts` has no `/review/[week]`, which
+`features/notifications/routes.ts` works around with a single `as Href` cast. Running
+`npx expo start` for ~50 seconds regenerates them and the cast can then be removed.
 
 ---
 
-## The two gaps to close
+## To finish
 
-### P08 — chat (nearly done)
-The feature modules exist. What is missing is `(tabs)/chat.tsx`, which still contains the
-P00 placeholder. Wire it to `features/chat/` (there is an `index.ts` barrel), then check
-the thread-creation race: `threads` has `unique (user_id, goal_id)`, so the lazy
-"create the daily_log thread on first open" path must select-then-insert-then-reselect.
+1. `cd cadence && npm run lint && npx jest && npx tsc --noEmit`
+2. Finish P12's doc work: `git mv` P04, P06, P08, P09, P10, P11 into
+   `doc/implementation/completed/` **only where the criteria genuinely hold** — read each
+   record first — update the phase table and the root README, and write `cadence/README.md`.
+3. Regenerate typed routes, drop the `as Href` cast.
+4. `npx expo export --platform ios` once, to prove it bundles.
+5. **Run it on the iPhone.** `npx expo start --tunnel`, scan with Expo Go. This is P00's
+   last acceptance criterion and the only thing that turns any of the above into evidence.
 
-### P11 — notifications and weekly review (not started)
-Build from scratch per `doc/implementation/pending/P11-notifications-weekly-review.md`.
-Local notifications only — remote push is not in Expo Go. `expo-notifications` is already
-installed, so **do not run any package manager**.
-
----
-
-## How to resume the workflow
-
-The script and run are preserved:
-
-```
-scriptPath:      C:\Users\HP\.claude\projects\F--bharath--Cycle-personal\5736bf1b-a66b-4bb6-a164-8837f4ce0e36\workflows\scripts\cadence-complete-wf_636254fa-995.js
-resumeFromRunId: wf_636254fa-995
-```
-
-Resuming replays the five completed agents from cache instantly and re-runs only P08, P11
-and everything after them. **Same-session only** — if the session has ended, the cache is
-gone and the script must be re-run with the finished phases removed from it.
-
-If resuming is not possible, run P08 and P11 as two ordinary agents with the same file
-ownership rules, then do the Integrate → Review → Fix → Polish stages by hand.
+### Known gaps that are deliberate, not bugs
+- **P07 speech-to-text is blocked** by Expo Go and stays blocked until P13.
+- **`@shopify/flash-list` is not installed**, so P08's chat log uses a FlatList. Installing
+  was forbidden during the run.
+- **Expo Go on Android has shipped no `expo-notifications` module since SDK 53.** Every
+  call is wrapped and swallowed, so nothing crashes, but reminders will not fire on Android
+  in Expo Go. On the iPhone they will.
+- P08's "linked messages appear in the task detail timeline" is not built; `task/[id].tsx`
+  belonged to another agent.
 
 ---
 
-## Rules the agents worked under — keep these
+## Rules any future agent run must keep
 
-- **Never run a package manager.** Every dependency is installed. Adding one risks a
-  module outside Expo Go's fixed set, which red-screens the app at import time.
-- **Disjoint file ownership.** The parallel agents only worked because no two of them
-  could touch the same file. P10 was the sole owner of `api/tasks.ts`, `api/goals.ts` and
-  `_layout.tsx` for exactly this reason.
+- **Never run a package manager.** One module outside Expo Go's fixed set red-screens the
+  app at import time, not at call time.
+- **Disjoint file ownership.** Parallel agents only worked because no two could touch the
+  same file.
 - **`node supabase/db.mjs reset|seed|test` is local-only** and refuses a non-local
   `PGHOST`. Never point it at the hosted project.
 - The domain rules in `.claude/skills/cadence-domain/SKILL.md` are enforced in Postgres,
   not TypeScript. No delete or edit affordance for a finalized task, ever.
 
----
+## Workflow run references
 
-## Why it was slower than estimated
+```
+run 1 (stopped at 5/12):  wf_636254fa-995
+run 2 (stopped at 7/8):   wf_9001588a-c60
+script: C:\Users\HP\.claude\projects\F--bharath--Cycle-personal\5736bf1b-a66b-4bb6-a164-8837f4ce0e36\workflows\scripts\cadence-finish-wf_9001588a-c60.js
+```
 
-This machine has 4 CPU cores and the runner caps concurrency at `cores − 2`, so only
-**two agents ran at a time** — the seven-way fan-out was really a two-lane queue. Roughly
-40 minutes produced five completed phases. Estimate about that again for the remaining
-build work, plus the five stages that never ran.
-
----
-
-## Suggested order on resume
-
-1. `npm run lint` and `npx jest` — find out what the five finished agents actually left.
-2. Regenerate typed routes, then `npx tsc --noEmit` again.
-3. Finish P08 (small), then P11 (from scratch).
-4. Integrate, review, fix, polish.
-5. **Run it on the iPhone.** Everything above is still unproven on a device.
+Resuming replays completed agents from cache, but **same-session only** — once this session
+ends, the cache is gone and the remaining work must be re-run as fresh agents.

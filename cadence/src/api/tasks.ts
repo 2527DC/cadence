@@ -26,6 +26,7 @@
 import { useMutation, useQuery, type MutationOptions } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
+import { reviewKeys } from '@/api/reviews';
 import { useAuth } from '@/features/auth/auth-provider';
 import { checked, sessionUserId } from '@/features/sync/session';
 import { clientId, isAlreadyClosedTo, isUniqueViolation } from '@/lib/outbox';
@@ -157,13 +158,19 @@ export type NewTask = {
    * task that already landed is found rather than inserted a second time.
    */
   id?: string;
+  /**
+   * Who was signed in when this was typed, stamped by useCreateTask. A write replayed
+   * from disk has no identity of its own; without this it would be filed under whoever
+   * is signed in when the queue finally flushes. See sessionUserId().
+   */
+  userId?: string;
 };
 
 const createTaskOptions = {
   mutationKey: taskMutationKeys.create,
   mutationFn: async (input: NewTask): Promise<Task> => {
     const id = input.id ?? clientId();
-    const userId = await sessionUserId();
+    const userId = await sessionUserId(input.userId);
 
     const row: TablesInsert<'tasks'> = {
       id,
@@ -225,15 +232,24 @@ export function useCreateTask() {
     },
   });
 
-  // The id is minted at the tap, in the variables, for the reason on NewTask.id.
+  // The id and the owner are fixed at the tap, in the variables, for the reasons on
+  // NewTask.id and NewTask.userId.
   const { mutate: rawMutate, mutateAsync: rawMutateAsync } = result;
+  const stamp = useCallback(
+    (input: NewTask): NewTask => ({
+      ...input,
+      id: input.id ?? clientId(),
+      userId: input.userId ?? userId,
+    }),
+    [userId],
+  );
   const mutate = useCallback<typeof rawMutate>(
-    (input, options) => rawMutate({ ...input, id: input.id ?? clientId() }, options),
-    [rawMutate],
+    (input, options) => rawMutate(stamp(input), options),
+    [rawMutate, stamp],
   );
   const mutateAsync = useCallback<typeof rawMutateAsync>(
-    (input, options) => rawMutateAsync({ ...input, id: input.id ?? clientId() }, options),
-    [rawMutateAsync],
+    (input, options) => rawMutateAsync(stamp(input), options),
+    [rawMutateAsync, stamp],
   );
 
   return { ...result, mutate, mutateAsync };
@@ -349,10 +365,12 @@ const finalizeOptions = {
     }
     const snapshots: WeekSnapshot[] = [];
     const now = new Date().toISOString();
-    // A preview of what the database will decide. The real answer comes back with the
-    // refetch; this only stops the row flickering between "draft" and "late" states.
-    const late = wouldBeLateAdd();
     for (const weekStart of weeks) {
+      // A preview of what the database will decide, asked per week: the rule is
+      // "after Wednesday of its own week", so committing to a week that has not
+      // started yet is never late. The real answer comes back with the refetch; this
+      // only stops the row flickering between "draft" and "late" states.
+      const late = wouldBeLateAdd(weekStart);
       snapshots.push(await snapshotWeek(weekStart));
       patchWeek(weekStart, (rows) =>
         rows.map((t) =>
@@ -448,6 +466,12 @@ const closeTaskOptions = {
     invalidateWeek(input.weekStart);
     void queryClient.invalidateQueries({ queryKey: taskKeys.history(input.taskId) });
     void queryClient.invalidateQueries({ queryKey: ['analytics'] });
+    // The weekly review reads the notes out of the ledger, and a correction appends a
+    // row to a task that was already closed. Without this the review would keep showing
+    // the superseded note next to the status that replaced it — a task marked N above
+    // the sentence explaining why it was completed, which is the exact quiet lie the
+    // append-only ledger exists to prevent.
+    void queryClient.invalidateQueries({ queryKey: reviewKeys.all });
   },
 } satisfies MutationOptions<Task, Error, CloseTaskInput, WeekSnapshot>;
 

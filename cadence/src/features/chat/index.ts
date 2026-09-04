@@ -11,7 +11,7 @@
 // the time; the log is only worth reading because it cannot be tidied afterwards.
 
 export { MessageBubble, DaySeparator, type MessageBubbleProps } from './message-bubble';
-export { Composer, type MessageLink } from './composer';
+export { Composer, type MessageLink, type RestoreText } from './composer';
 export { AttachSheet } from './attach-sheet';
 export { ThreadBar } from './thread-bar';
 export { SearchView } from './search-view';

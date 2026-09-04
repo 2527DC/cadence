@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useGoalProgress, useStreakThreshold, useTaskFacts, useWeekRollups } from '@/api/analytics';
 import { useGoals } from '@/api/goals';
-import { Button, Card, EmptyState, Loading, Text } from '@/components/ui';
+import { Button, EmptyState, ErrorState, Loading, Text, errorText } from '@/components/ui';
 import {
   ConsistencyCard,
   ThisWeekCard,
@@ -36,7 +36,12 @@ import {
   weekSeries,
 } from '@/features/analytics/metrics';
 import { useAuth } from '@/features/auth/auth-provider';
-import { currentWeekStart, toDateString, todayInAppTimezone } from '@/lib/week';
+import { ReviewPrompt } from '@/features/notifications';
+import { currentWeekStart, shiftWeek, toDateString, todayInAppTimezone } from '@/lib/week';
+
+// One bad screen must not take the app with it. expo-router wraps this route in the
+// boundary below, so a throw here leaves the tab bar and every other tab alive.
+export { ScreenErrorBoundary as ErrorBoundary } from '@/components/error-boundary';
 
 const WINDOW = 12;
 
@@ -122,11 +127,11 @@ export default function DashboardScreen() {
         {rollups.isPending ? (
           <Loading label="Reading your weeks" />
         ) : rollups.error && !rollups.data ? (
-          <Card className="mt-6">
-            <Text className="text-status-n dark:text-status-n-dark">
-              {(rollups.error as Error).message}
-            </Text>
-          </Card>
+          <ErrorState
+            title="The numbers could not be loaded"
+            message={errorText(rollups.error)}
+            onRetry={() => void rollups.refetch()}
+          />
         ) : !model || rollups.data.length === 0 ? (
           <EmptyState
             title="Nothing to measure yet"
@@ -136,6 +141,13 @@ export default function DashboardScreen() {
           <>
             {/* 1. Current state ------------------------------------------- */}
             <ThisWeekCard week={model.week} threshold={threshold.data ?? 0.7} />
+
+            {/* The week that just ended, offered for review. It belongs with the
+                current-state block rather than down in the detail, and it is the
+                in-app route into the review — the one that still exists when
+                notification permission was refused. Renders null while loading and
+                softens to "Read it again" once the review is written. */}
+            <ReviewPrompt weekStart={shiftWeek(currentWeek, -1)} />
 
             {/* 2. Trajectory ---------------------------------------------- */}
             <ConsistencyCard

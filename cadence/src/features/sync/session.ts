@@ -15,12 +15,26 @@ import { supabase } from '@/lib/supabase';
  * throws a *retryable* error rather than "not signed in": a genuine sign-out clears
  * the mutation cache (see clearPersistedCache), so a mutation that finds no session
  * is always one that is waiting for the network, not one that should give up.
+ *
+ * `owner` is the account the write was made by, stamped into the variables at the tap
+ * and persisted with them. A queued write is replayed from disk, possibly days later,
+ * and until it runs it has no identity of its own — it would take whichever session it
+ * happens to find. That is only ever right when it is the same one. A refresh token
+ * that expired while the app was killed leaves no SIGNED_OUT to clear the queue on, so
+ * the check is made here, where the row is about to be written, rather than trusted to
+ * have happened earlier. A mismatch is a rejection, not a retry: nobody is coming to
+ * make it the right account again.
  */
-export async function sessionUserId(): Promise<string> {
+export async function sessionUserId(owner?: string | null): Promise<string> {
   const { data } = await supabase.auth.getSession();
   const id = data.session?.user.id;
-  if (id) return id;
-  throw new RetryableSyncError('The session could not be refreshed yet.', 'network');
+  if (!id) throw new RetryableSyncError('The session could not be refreshed yet.', 'network');
+  if (owner && owner !== id) {
+    throw new Error(
+      'That change was made while a different account was signed in, so it was not applied.',
+    );
+  }
+  return id;
 }
 
 type SupabaseResponse<T> = {

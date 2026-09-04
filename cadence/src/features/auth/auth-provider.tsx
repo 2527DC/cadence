@@ -41,7 +41,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Fires for sign-in, sign-out, and every token refresh. This is the only place
     // session state is written after the initial read.
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => {
+    //
+    // A session does not only end at the sign-out button: a refresh token can expire or
+    // be revoked from another device, and auth-js reports that here as SIGNED_OUT with
+    // nobody having tapped anything. The cache has to go with it, or the next person to
+    // sign in on this phone opens on the previous user's week — which is precisely what
+    // clearPersistedCache exists to prevent.
+    const { data: listener } = supabase.auth.onAuthStateChange((event, next) => {
+      if (event === 'SIGNED_OUT') void clearPersistedCache();
       setSession(next);
     });
 
@@ -79,7 +86,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     // Order matters: the cache holds this user's tasks and notes, so it has to go
-    // before the next person can reach a screen that reads it.
+    // before the next person can reach a screen that reads it. The listener above
+    // clears it too; awaiting it here is what makes signOut() resolve only once the
+    // disk is actually empty, and clearing twice costs nothing.
     await clearPersistedCache();
   }, []);
 
