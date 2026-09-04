@@ -1,0 +1,61 @@
+// The id is chosen on the device and reused across retries, so it has to be a real
+// v4 every time and unique every time — whichever generator the runtime offers.
+
+import { isUuidV4, uuidv4 } from './uuid';
+
+type MutableGlobal = {
+  crypto?: unknown;
+  expo?: { uuidv4?: () => string };
+};
+
+const g = globalThis as unknown as MutableGlobal;
+
+function withoutCrypto<T>(run: () => T): T {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  Object.defineProperty(globalThis, 'crypto', { value: undefined, configurable: true });
+  try {
+    return run();
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+    else delete g.crypto;
+  }
+}
+
+describe('uuidv4', () => {
+  afterEach(() => {
+    delete g.expo;
+  });
+
+  it('produces a well-formed v4 from whatever the runtime provides', () => {
+    expect(isUuidV4(uuidv4())).toBe(true);
+  });
+
+  it('never repeats', () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 2000; i++) seen.add(uuidv4());
+    expect(seen.size).toBe(2000);
+  });
+
+  it('uses the native expo generator when crypto.randomUUID is absent', () => {
+    withoutCrypto(() => {
+      g.expo = { uuidv4: () => '1b4e28ba-2fa1-4d3b-8f0a-1f2e3d4c5b6a' };
+      expect(uuidv4()).toBe('1b4e28ba-2fa1-4d3b-8f0a-1f2e3d4c5b6a');
+    });
+  });
+
+  it('falls back to a pure implementation with the right version and variant bits', () => {
+    withoutCrypto(() => {
+      const id = uuidv4();
+      expect(isUuidV4(id)).toBe(true);
+      expect(id[14]).toBe('4');
+      expect('89ab').toContain(id[19]);
+    });
+  });
+
+  it('ignores a native generator that returns garbage', () => {
+    withoutCrypto(() => {
+      g.expo = { uuidv4: () => 'not-a-uuid' };
+      expect(isUuidV4(uuidv4())).toBe(true);
+    });
+  });
+});

@@ -6,17 +6,31 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/features/auth/auth-provider';
-import { persister, queryClient } from '@/lib/query-client';
+import { startNetworkSync } from '@/features/sync/network';
+import { resumeOutbox, setupOutbox } from '@/features/sync/outbox-setup';
+import { SyncBanner } from '@/features/sync/sync-banner';
+import { persistOptions, queryClient } from '@/lib/query-client';
 
 // Hold the splash screen until we know whether there is a session. Without this the
 // sign-in screen appears for a frame on every cold start, even when signed in —
 // which reads as "it logged me out again" rather than "it is still loading".
 void SplashScreen.preventAutoHideAsync();
+
+// Register the replayable mutations before anything can hydrate the persisted cache.
+// A mutation that was queued offline and survived a restart is rebuilt from what is
+// registered here; hydrate it first and it comes back with no function to run.
+setupOutbox();
+
+// Runs once, after the persisted cache has been read back — the earliest moment a
+// queued write from a previous run exists again.
+function onCacheRestored() {
+  void resumeOutbox();
+}
 
 /**
  * The route guard.
@@ -55,20 +69,29 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
+  // Online/offline and foreground/background, so paused writes know when to resume.
+  useEffect(() => startNetworkSync(), []);
+
   return (
     // GestureHandlerRootView has to be the outermost view or gestures silently do
     // nothing on iOS — no error, they just never fire.
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={persistOptions}
+          onSuccess={onCacheRestored}>
           <AuthProvider>
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
               <BottomSheetModalProvider>
                 <RouteGuard>
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="(tabs)" />
-                    <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />
-                  </Stack>
+                  <View style={{ flex: 1 }}>
+                    <SyncBanner />
+                    <Stack screenOptions={{ headerShown: false }}>
+                      <Stack.Screen name="(tabs)" />
+                      <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />
+                    </Stack>
+                  </View>
                 </RouteGuard>
               </BottomSheetModalProvider>
             </ThemeProvider>

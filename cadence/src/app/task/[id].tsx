@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Loading, STATUS_META, StatusPill, Text } from '@/components/ui';
 import { useTaskHistory, useWeekTasks, type StatusEvent, type Task } from '@/api/tasks';
 import { CloseTaskSheet } from '@/features/tasks/close-task-sheet';
+import { VoiceNotePlayer } from '@/features/voice';
 import { formatWeekRange, weekStartOf } from '@/lib/week';
 
 export default function TaskDetailScreen() {
@@ -31,7 +32,7 @@ export default function TaskDetailScreen() {
   const task = tasks.data?.find((t) => t.id === id);
 
   return (
-    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark" edges={['top']}>
+    <SafeAreaView className="bg-bg dark:bg-bg-dark flex-1" edges={['top']}>
       <ScrollView contentContainerClassName="px-gutter pb-16 pt-2">
         <Pressable onPress={() => router.back()} accessibilityRole="button" hitSlop={8}>
           <Text variant="meta" className="text-accent dark:text-accent-dark">
@@ -47,7 +48,7 @@ export default function TaskDetailScreen() {
           </Card>
         ) : (
           <>
-            <View className="mt-4 flex-row items-start justify-between gap-3">
+            <View className="mt-4 gap-3 flex-row items-start justify-between">
               <Text variant="title" className="flex-1">
                 {task.title}
               </Text>
@@ -84,7 +85,7 @@ export default function TaskDetailScreen() {
             )}
 
             {/* The ledger ------------------------------------------------- */}
-            <Text variant="micro" className="mt-8 uppercase tracking-wider">
+            <Text variant="micro" className="mt-8 tracking-wider uppercase">
               History
             </Text>
 
@@ -93,8 +94,7 @@ export default function TaskDetailScreen() {
             ) : (history.data?.length ?? 0) === 0 ? (
               <Card className="mt-2">
                 <Text variant="meta">
-                  Nothing yet. The first time you close this, what you write is kept here for
-                  good.
+                  Nothing yet. The first time you close this, what you write is kept here for good.
                 </Text>
               </Card>
             ) : (
@@ -123,13 +123,13 @@ function HistoryEntry({ event, isCorrection }: { event: StatusEvent; isCorrectio
 
   return (
     <Card>
-      <View className="flex-row items-center gap-2">
+      <View className="gap-2 flex-row items-center">
         <View className={`h-3 w-3 rounded-full ${to.dot}`} />
         <Text className="font-semibold">
           {event.from_status} → {event.to_status}
         </Text>
         {isCorrection ? (
-          <View className="rounded-full bg-raised px-2 py-0.5 dark:bg-raised-dark">
+          <View className="bg-raised px-2 py-0.5 dark:bg-raised-dark rounded-full">
             <Text variant="micro">correction</Text>
           </View>
         ) : null}
@@ -147,13 +147,15 @@ function HistoryEntry({ event, isCorrection }: { event: StatusEvent; isCorrectio
         {event.nc_reason ? ` · ${event.nc_reason.replace(/_/g, ' ')}` : ''}
       </Text>
 
-      {event.note ? (
-        <Text className="mt-2">{event.note}</Text>
-      ) : (
-        <Text variant="meta" className="mt-2 italic">
-          Spoken note — playback arrives with P06.
-        </Text>
-      )}
+      {event.note ? <Text className="mt-2">{event.note}</Text> : null}
+
+      {/* A spoken note plays back here. The recording is as permanent as the row
+          that points at it — the voice module has no delete for that reason. */}
+      {event.voice_note_id ? (
+        <View className="mt-2">
+          <VoiceNotePlayer voiceNoteId={event.voice_note_id} />
+        </View>
+      ) : null}
     </Card>
   );
 }

@@ -28,6 +28,9 @@ Stack: **Expo (React Native) + TypeScript + Supabase**.
 
 ---
 
+> **Work in progress:** see [doc/RESUME.md](doc/RESUME.md) — a multi-agent run was stopped
+> part-way on 2026-09-04. Five phases landed, two did not, and the work is uncommitted.
+
 ## Documents
 
 ```
