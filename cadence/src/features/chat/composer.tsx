@@ -11,7 +11,7 @@
 // not swapped: the recorder holds a native audio session, and tearing it down on
 // every keystroke that empties the field would be wasteful and occasionally audible.
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { Text } from '@/components/ui';
@@ -62,13 +62,19 @@ export function Composer({
   // handed back as a token instead. Anything already typed wins: getting your words
   // back must never cost you the ones you have started writing since.
   const restoreToken = restore?.token ?? 0;
-  const restoredToken = useRef(restoreToken);
-  useEffect(() => {
-    if (restoreToken === restoredToken.current) return;
-    restoredToken.current = restoreToken;
+  // Adjusted during render, not in an effect. This is state reacting to a prop
+  // changing, and React 19's react-hooks/set-state-in-effect rejects the effect form
+  // of it for a good reason: the effect version paints the empty field once and the
+  // restored words a frame later, and with the React Compiler on (app.config.ts
+  // experiments.reactCompiler) a render may be retried, so the token bookkeeping does
+  // not belong in a ref either. Setting state during render is the supported shape —
+  // React throws this render away and re-runs the component before anything is shown.
+  const [restoredToken, setRestoredToken] = useState(restoreToken);
+  if (restoreToken !== restoredToken) {
+    setRestoredToken(restoreToken);
     const words = restore?.text ?? '';
     if (words) setText((current) => (current.trim().length === 0 ? words : current));
-  }, [restore, restoreToken]);
+  }
 
   const problem = sendProblem({ text });
   const canSend = !disabled && !problem;

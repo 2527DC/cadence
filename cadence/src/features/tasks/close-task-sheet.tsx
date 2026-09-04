@@ -50,6 +50,7 @@ import {
   type CloseDraft,
 } from '@/features/closing/draft';
 import { VoiceNotePlayer, VoiceRecorderButton } from '@/features/voice';
+import { useLatestRef } from '@/hooks/use-latest-ref';
 import { hapticCommit, hapticReject, hapticSelect } from '@/lib/haptics';
 
 // BottomSheetTextInput is not one of the components NativeWind registers, so its
@@ -125,10 +126,35 @@ export function CloseTaskSheet({ task, onClose }: { task: Task | null; onClose: 
     sheetRef.current?.present();
   }, []);
 
+  // Opening from the prop is split in two, because the two halves want different
+  // places. Seeding the form is a state adjustment — new task in, fresh draft out —
+  // and React 19's react-hooks/set-state-in-effect rejects doing that in an effect:
+  // the effect version renders the sheet once with the previous task's words still in
+  // it. Done during render, React re-runs the component before anything is painted.
+  //
+  // `requested` starts null rather than at `task` so that a sheet mounted with a task
+  // already in hand still seeds itself on that first render.
+  const [requested, setRequested] = useState<Task | null>(null);
+  if (task !== requested) {
+    setRequested(task);
+    if (task) {
+      setActive(task);
+      setDraft(EMPTY_DRAFT);
+      setSubmitting(false);
+      setNoteFocused(false);
+    }
+  }
+
+  // Presenting and dismissing are imperative calls into the sheet, so they stay in an
+  // effect — after the commit, exactly where they ran before.
   useEffect(() => {
-    if (task) open(task, EMPTY_DRAFT);
-    else if (presentedRef.current) sheetRef.current?.dismiss();
-  }, [task, open]);
+    if (task) {
+      presentedRef.current = true;
+      sheetRef.current?.present();
+    } else if (presentedRef.current) {
+      sheetRef.current?.dismiss();
+    }
+  }, [task]);
 
   // Fires once the sheet has finished sliding away, whichever way it went.
   const handleDismiss = useCallback(() => {
@@ -261,10 +287,12 @@ export function CloseTaskSheet({ task, onClose }: { task: Task | null; onClose: 
   // The backdrop and footer are handed to the sheet as component types, so a new
   // function means a remount. Reading the latest handlers through refs keeps the
   // backdrop stable for good, and the footer stable until something it shows changes.
-  const requestCloseRef = useRef(requestClose);
-  requestCloseRef.current = requestClose;
-  const submitRef = useRef(submit);
-  submitRef.current = submit;
+  //
+  // useLatestRef, not `ref.current = fn` during render: the React Compiler is on and a
+  // render can be retried or thrown away, so the assignment belongs in an effect. Both
+  // of these are only ever read from a press, which is long after effects have flushed.
+  const requestCloseRef = useLatestRef(requestClose);
+  const submitRef = useLatestRef(submit);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -276,7 +304,7 @@ export function CloseTaskSheet({ task, onClose }: { task: Task | null; onClose: 
         onPress={() => requestCloseRef.current()}
       />
     ),
-    [],
+    [requestCloseRef],
   );
 
   // Pinned above the keyboard by the sheet, so Save is never behind the keys. The
@@ -304,7 +332,7 @@ export function CloseTaskSheet({ task, onClose }: { task: Task | null; onClose: 
         </View>
       </BottomSheetFooter>
     ),
-    [blocker, isCorrection, submitting, bottomInset],
+    [blocker, isCorrection, submitting, bottomInset, requestCloseRef, submitRef],
   );
 
   return (

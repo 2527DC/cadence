@@ -9,7 +9,7 @@
 // played portion filled), the live meter while recording (a sliding window of the
 // newest samples), and — with `onSeek` — a scrubber.
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { PanResponder, View, type LayoutChangeEvent } from 'react-native';
 
 /** Bars never vanish entirely: a silent stretch still reads as "recording, quiet". */
@@ -33,33 +33,42 @@ export function WaveformView({
   accessibilityLabel?: string;
   className?: string;
 }) {
-  const widthRef = useRef(0);
-  const seekRef = useRef(onSeek);
-  seekRef.current = onSeek;
+  // Width is state, not a ref, and that is the whole reason this component has no refs
+  // left. React 19's react-hooks/refs rule rejects a ref captured by any function built
+  // during render — and PanResponder.create is exactly that — so the usual
+  // "latest value in a ref" trick is not available. useEffectEvent is not either: its
+  // result cannot be passed into another function. Width changes on layout and
+  // essentially never after, so holding it in state costs one extra render and makes
+  // the problem disappear rather than get suppressed.
+  const [width, setWidth] = useState(0);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
-    widthRef.current = e.nativeEvent.layout.width;
+    const w = e.nativeEvent.layout.width;
+    setWidth((prev) => (prev === w ? prev : w));
   }, []);
 
-  // A PanResponder rather than a Pressable so that a drag scrubs continuously. It
-  // is created once; the current onSeek is read through a ref so a re-render does
-  // not tear the gesture down mid-drag.
-  const pan = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => !!seekRef.current,
-      onMoveShouldSetPanResponder: () => !!seekRef.current,
+  // A PanResponder rather than a Pressable so that a drag scrubs continuously.
+  //
+  // Rebuilt when onSeek or width changes. Neither changes during a drag — a gesture
+  // does not resize its own container — so it is stable for as long as that matters,
+  // and it closes over plain values instead of anything mutable.
+  //
+  // It claims the gesture unconditionally: panHandlers are only spread onto the View
+  // when onSeek exists, so a guard here could never be false when these ran.
+  const pan = useMemo(() => {
+    const seek = (x: number) => {
+      if (!onSeek || width <= 0) return;
+      onSeek(Math.min(1, Math.max(0, x / width)));
+    };
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
       onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: (e) => emit(e.nativeEvent.locationX),
-      onPanResponderMove: (e) => emit(e.nativeEvent.locationX),
-      onPanResponderRelease: (e) => emit(e.nativeEvent.locationX),
-    }),
-  ).current;
-
-  function emit(x: number) {
-    const w = widthRef.current;
-    if (!seekRef.current || w <= 0) return;
-    seekRef.current(Math.min(1, Math.max(0, x / w)));
-  }
+      onPanResponderGrant: (e) => seek(e.nativeEvent.locationX),
+      onPanResponderMove: (e) => seek(e.nativeEvent.locationX),
+      onPanResponderRelease: (e) => seek(e.nativeEvent.locationX),
+    });
+  }, [onSeek, width]);
 
   const playedCount = Math.round(Math.min(1, Math.max(0, progress)) * levels.length);
 

@@ -22,8 +22,19 @@ function withoutCrypto<T>(run: () => T): T {
 }
 
 describe('uuidv4', () => {
+  // expo-modules-core installs a real `globalThis.expo`, and jest-expo's own teardown
+  // reads `globalThis.expo.EventEmitter`. Deleting the object outright takes the whole
+  // suite down with "Cannot read properties of undefined (reading 'EventEmitter')".
+  //
+  // This was invisible until expo-modules-core was hoisted to a top-level dependency:
+  // while it resolved only from expo/node_modules, jest-expo could not load it, no
+  // `globalThis.expo` existed, and deleting nothing was harmless. Save and restore
+  // instead, so the stub these tests install is removed without taking the real one.
+  const realExpo = Object.getOwnPropertyDescriptor(globalThis, 'expo');
+
   afterEach(() => {
-    delete g.expo;
+    if (realExpo) Object.defineProperty(globalThis, 'expo', realExpo);
+    else delete g.expo;
   });
 
   it('produces a well-formed v4 from whatever the runtime provides', () => {

@@ -32,6 +32,8 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
+import { useLatestRef } from '@/hooks/use-latest-ref';
+
 import { discardTemp, persistRecording, writePending, type PendingRecording } from './local-files';
 import { uuidv4 } from './uuid';
 import {
@@ -98,8 +100,10 @@ export function useVoiceRecorder({ onInterrupted }: { onInterrupted?: () => void
   const startedAtRef = useRef(0);
   const lastDurationRef = useRef(0);
   const interruptedRef = useRef(false);
-  const onInterruptedRef = useRef(onInterrupted);
-  onInterruptedRef.current = onInterrupted;
+  // Only ever called from the metering interval, so being one render behind until
+  // effects flush is not observable — and it keeps render free of ref writes, which
+  // the React Compiler needs (see use-latest-ref.ts).
+  const onInterruptedRef = useLatestRef(onInterrupted);
 
   const recorder = useAudioRecorder(RECORDING_OPTIONS, (status) => {
     // Stale closure by design (see the header). setError is stable.
@@ -243,7 +247,7 @@ export function useVoiceRecorder({ onInterrupted }: { onInterrupted?: () => void
       void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
       return false;
     }
-  }, [recorder, requestPermission]);
+  }, [recorder, requestPermission, onInterruptedRef]);
 
   /**
    * Stop and persist. Anything under a second is discarded as a tap. On any other

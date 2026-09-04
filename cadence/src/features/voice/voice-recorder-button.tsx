@@ -12,11 +12,12 @@
 //
 // There is no way to delete a recording from here, or from anywhere else.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, PanResponder, Pressable, View } from 'react-native';
 
 import { useSaveVoiceNote } from '@/api/voice-notes';
 import { Button, Text } from '@/components/ui';
+import { useLatestRef } from '@/hooks/use-latest-ref';
 import { hapticCommit, hapticReject, hapticSelect, hapticWarn } from '@/lib/haptics';
 
 import { clearPending } from './local-files';
@@ -59,17 +60,23 @@ export function VoiceRecorderButton({
   const mountedRef = useRef(true);
 
   // Everything the gesture calls goes through refs. The PanResponder is created
-  // once and must always see the latest closure, not the one from first render.
+  // once and must always see the latest closure, not the one from first render —
+  // see the note on `pan` below for why it cannot simply be rebuilt instead.
+  //
+  // Every one of these is written in an effect, never during render. That is what
+  // React 19's react-hooks/refs asks for and the React Compiler needs: a render may be
+  // retried or discarded, so a value written during render can be written twice or
+  // written and thrown away. Each is read only from a touch or an async continuation,
+  // both of which happen long after effects have flushed.
   const finishRef = useRef<() => Promise<void>>(async () => {});
   const abortRef = useRef<() => Promise<void>>(async () => {});
-  const canStartRef = useRef(false);
-  const onRecordedRef = useRef(onRecorded);
-  onRecordedRef.current = onRecorded;
+  const onRecordedRef = useLatestRef(onRecorded);
 
   const saving = save.isPending;
   const busy = recorder.phase !== 'idle' || saving;
   const blocked = recorder.permission === 'blocked';
-  canStartRef.current = !disabled && !busy && !blocked;
+  const canStartRef = useLatestRef(!disabled && !busy && !blocked);
+  const startRef = useLatestRef(recorder.start);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -122,7 +129,7 @@ export function VoiceRecorderButton({
     }
   }
 
-  finishRef.current = async () => {
+  async function finish() {
     const started = await startPromiseRef.current;
     startPromiseRef.current = null;
     // Not started: permission refused, or the first-time grant (which deliberately
@@ -141,51 +148,71 @@ export function VoiceRecorderButton({
       return;
     }
     await upload(result.recording);
-  };
+  }
 
-  abortRef.current = async () => {
+  async function abort() {
     const started = await startPromiseRef.current;
     startPromiseRef.current = null;
     if (!started) return;
     await recorder.cancel();
     hapticWarn();
     flashHint('Cancelled');
-  };
+  }
 
-  const startRef = useRef<() => Promise<boolean>>(async () => false);
-  startRef.current = recorder.start;
+  // No dependency array: any render may be the one that changed these closures.
+  useEffect(() => {
+    finishRef.current = finish;
+    abortRef.current = abort;
+  });
 
-  const pan = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => canStartRef.current,
-      onMoveShouldSetPanResponder: () => false,
-      // A parent ScrollView must not take the touch away mid-recording.
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: () => {
-        cancelArmedRef.current = false;
-        setCancelArmed(false);
-        setHint(null);
-        hapticSelect();
-        startPromiseRef.current = startRef.current();
-      },
-      onPanResponderMove: (_e, g) => {
-        const armed = g.dx < -CANCEL_THRESHOLD_PX;
-        if (armed !== cancelArmedRef.current) {
-          cancelArmedRef.current = armed;
-          setCancelArmed(armed);
-          hapticWarn();
-        }
-      },
-      onPanResponderRelease: () => {
-        void (cancelArmedRef.current ? abortRef.current() : finishRef.current());
-      },
-      // The system took the touch — an incoming call, a system sheet. Treat it
-      // as a release, never as a cancel: what was said is kept.
-      onPanResponderTerminate: () => {
-        void finishRef.current();
-      },
-    }),
-  ).current;
+  // Created once and never rebuilt, which is the difference from the scrubber in
+  // waveform-view.tsx. This responder accumulates gesture state across the hold —
+  // `dx` is what arms the slide-to-cancel — so handing the View a fresh PanResponder
+  // part-way through would restart that accumulation from zero and the cancel would
+  // quietly stop working. And the values it reads do change mid-gesture: `busy` flips
+  // the instant the hold starts recording, and the meter re-renders at 10 Hz. There is
+  // no set of memo keys that is both correct and stable, so the latest values arrive
+  // through refs written in effects.
+  const pan = useMemo(
+    () =>
+      // PanResponder.create only stores these handlers; it never calls them during
+      // render, and the refs they close over are written in effects (above), so nothing
+      // here reads or writes a ref while rendering. The rule cannot see that, and both
+      // ways round it are worse: rebuilding the responder breaks the gesture (see the
+      // paragraph above), and a useEffectEvent result cannot be passed into another
+      // function without tripping rules-of-hooks. So this one line is exempted.
+      // eslint-disable-next-line react-hooks/refs
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => canStartRef.current,
+        onMoveShouldSetPanResponder: () => false,
+        // A parent ScrollView must not take the touch away mid-recording.
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: () => {
+          cancelArmedRef.current = false;
+          setCancelArmed(false);
+          setHint(null);
+          hapticSelect();
+          startPromiseRef.current = startRef.current();
+        },
+        onPanResponderMove: (_e, g) => {
+          const armed = g.dx < -CANCEL_THRESHOLD_PX;
+          if (armed !== cancelArmedRef.current) {
+            cancelArmedRef.current = armed;
+            setCancelArmed(armed);
+            hapticWarn();
+          }
+        },
+        onPanResponderRelease: () => {
+          void (cancelArmedRef.current ? abortRef.current() : finishRef.current());
+        },
+        // The system took the touch — an incoming call, a system sheet. Treat it
+        // as a release, never as a cancel: what was said is kept.
+        onPanResponderTerminate: () => {
+          void finishRef.current();
+        },
+      }),
+    [abortRef, canStartRef, finishRef, startRef],
+  );
 
   // A first-time grant ends the hold without recording (see use-voice-recorder.ts
   // rule 2). Say so, or the first hold looks like it silently did nothing.

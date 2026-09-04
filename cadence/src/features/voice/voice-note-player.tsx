@@ -66,9 +66,20 @@ export function VoiceNotePlayer({ voiceNoteId }: { voiceNoteId: string }) {
 
   // undefined = not checked yet, null = not on this device.
   const [local, setLocal] = useState<string | null | undefined>(undefined);
+
+  // The reset back to "not checked yet" happens during render rather than in the
+  // effect below. It is a state adjustment — one id in, one answer out — and doing it
+  // in the effect meant one painted frame still showing the previous note's source
+  // before the lookup restarted, which is exactly what react-hooks/set-state-in-effect
+  // objects to. React re-runs this component before anything reaches the screen.
+  const [lookedUp, setLookedUp] = useState(voiceNoteId);
+  if (lookedUp !== voiceNoteId) {
+    setLookedUp(voiceNoteId);
+    setLocal(undefined);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    setLocal(undefined);
     void localFile(voiceNoteId).then((f) => {
       if (!cancelled) setLocal(f?.uri ?? null);
     });
