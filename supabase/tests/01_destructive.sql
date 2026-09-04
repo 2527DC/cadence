@@ -160,6 +160,34 @@ begin
        ''This one was never finalized in the first place.'')',
     'still a draft');
 
+  -- The ledger is append-only, in BOTH directions -----------------------------
+  -- 0015. The tests below checked UPDATE and DELETE, because those are the operations
+  -- the design talks about. Nobody checked INSERT — and INSERT is the one that has to
+  -- be granted, because close_task() is SECURITY INVOKER and appends as the caller. So
+  -- the ledger was writable directly: an event that never happened, carrying a note
+  -- nobody wrote, attached to a task whose status never moved. The analytics read this
+  -- table, so that is the whole claim of the app, gone.
+  perform pg_temp.must_fail(
+    'append to the ledger directly, without close_task()',
+    'insert into task_status_events (user_id, task_id, from_status, to_status, note)
+     values (''11111111-1111-1111-1111-111111111111'', ''' || v_task || ''',
+             ''OPEN''::task_status, ''C''::task_status,
+             ''An event that never actually happened at all.'')',
+    'append-only through close_task');
+
+  -- late_add is evidence, and evidence is not editable -------------------------
+  -- 0015. §4.2 froze the task's identity but not the record of when it was committed,
+  -- so setting late_add back to false a second later was simply accepted.
+  perform pg_temp.must_fail(
+    'flip the late_add flag on a finalized task',
+    'update tasks set late_add = not late_add where id = ''' || v_task || '''',
+    'not editable');
+
+  perform pg_temp.must_fail(
+    'backdate when a finalized task was committed',
+    'update tasks set finalized_at = finalized_at - interval ''3 days'' where id = ''' || v_task || '''',
+    'not editable');
+
   -- The ledger is append-only ------------------------------------------------
   -- No UPDATE grant and no UPDATE policy: the privilege check fires first.
   perform pg_temp.must_fail(

@@ -44,16 +44,25 @@ begin
   perform pg_temp.must_equal('a new task starts as a draft',
     (select is_finalized from tasks where id = v_task), false);
 
-  -- Finalize on a Thursday: late_add must be computed by the trigger, not supplied.
-  -- Note that `false` is passed in explicitly and is expected to be overwritten.
+  -- Finalizing: both finalized_at and late_add are the database's to decide.
+  --
+  -- This deliberately supplies a lie in each field — a finalized_at three weeks in the
+  -- past, and late_add = false — and expects both to be discarded. Before 0015 the
+  -- backdated timestamp was accepted and late_add was computed from it, which meant a
+  -- Sunday commitment could be made to look punctual.
   update tasks
      set is_finalized = true,
-         finalized_at = (v_week + 3)::timestamptz + time '10:00',
+         finalized_at = (v_week - 21)::timestamptz + time '10:00',
          late_add     = false
    where id = v_task;
 
-  perform pg_temp.must_equal('late_add is computed, not taken from the client',
-    (select late_add from tasks where id = v_task), true);
+  perform pg_temp.must_equal('a client-supplied finalized_at is discarded',
+    (select finalized_at::date from tasks where id = v_task),
+    (now() at time zone 'Asia/Kolkata')::date);
+
+  perform pg_temp.must_equal('late_add is computed from the real commit time',
+    (select late_add from tasks where id = v_task),
+    extract(isodow from (now() at time zone 'Asia/Kolkata')) > 3);
 
   -- Close it -----------------------------------------------------------------
   select * into v_row from close_task(v_task, 'C',
