@@ -1,9 +1,13 @@
 import '@/global.css';
 
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { Stack, useRouter, useSegments } from 'expo-router';
+// As of SDK 56 expo-router no longer sits on top of react-navigation — it vendors its
+// own copy. Importing @react-navigation/native alongside it loads a second, separate
+// navigation library and Metro refuses to bundle, which is the right call: two
+// navigators sharing one screen tree fail in ways that are very hard to read.
+// The theme API is re-exported from expo-router itself.
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useColorScheme, View } from 'react-native';
@@ -71,7 +75,9 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
     // landed on the review and was immediately replaced by the planner. Deep-linking
     // to the review is a P11 acceptance criterion, so the condition is stated in terms
     // of the auth flow instead.
-    const inAuthFlow = segments[0] === 'sign-in';
+    // Both auth screens count. Without /register here, tapping "Create one" would be
+    // bounced straight back to /sign-in and the account could never be made.
+    const inAuthFlow = segments[0] === 'sign-in' || segments[0] === 'register';
 
     if (!session && !inAuthFlow) {
       router.replace('/sign-in');
@@ -118,6 +124,7 @@ export default function RootLayout() {
                     <Stack screenOptions={{ headerShown: false }}>
                       <Stack.Screen name="(tabs)" />
                       <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />
+                      <Stack.Screen name="register" options={{ animation: 'fade' }} />
                     </Stack>
                   </View>
                 </RouteGuard>

@@ -14,6 +14,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { AppState } from 'react-native';
 
+import { loggingFetch } from '@/lib/http-log';
 import type { Database } from '@/types/database.types';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -102,6 +103,9 @@ const SecureStoreAdapter = {
 };
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
+  // Every request and response goes through here, so nothing has to remember to log
+  // itself. Credentials inside them are redacted — see src/lib/http-log.ts.
+  global: { fetch: loggingFetch },
   auth: {
     storage: SecureStoreAdapter,
     autoRefreshToken: true,

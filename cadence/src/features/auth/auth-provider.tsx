@@ -16,8 +16,10 @@ type AuthState = {
   user: User | null;
   /** True until the stored session has been read. Gates the route guard. */
   isRestoring: boolean;
-  sendCode: (email: string) => Promise<void>;
-  verifyCode: (email: string, code: string) => Promise<void>;
+  /** Create an account. Resolves to true when a confirmation email was sent. */
+  register: (email: string, password: string) => Promise<boolean>;
+  logIn: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -61,25 +63,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const sendCode = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
+  /**
+   * Create an account with an email and a password.
+   *
+   * Returns true when Supabase sent a confirmation email and the account is not usable
+   * yet, false when the session is live immediately. Which one you get depends on the
+   * project's "Confirm email" setting, not on anything here — so the caller has to
+   * handle both rather than assume.
+   *
+   * The profiles row is not created here. The on_auth_user_created trigger from
+   * migration 0001 does it, so an account can never exist without one.
+   */
+  const register = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
-      options: {
-        // A single-user app still wants the first sign-in to create the account.
-        // The profile row appears by way of the on_auth_user_created trigger from
-        // migration 0001 — the client never inserts it.
-        shouldCreateUser: true,
-      },
+      password,
+    });
+    if (error) throw error;
+
+    // Supabase returns a user with no session when confirmation is required. It also
+    // returns a user with an empty identities array when the address is already
+    // registered — deliberately, so sign-up cannot be used to enumerate accounts. Both
+    // look like success, so treat both as "check your email" rather than signing in.
+    return !data.session;
+  }, []);
+
+  const logIn = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
     });
     if (error) throw error;
   }, []);
 
-  const verifyCode = useCallback(async (email: string, code: string) => {
-    const { error } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token: code.trim(),
-      type: 'email',
-    });
+  /**
+   * Sends a reset link. Always resolves, even for an address that has no account —
+   * Supabase answers identically either way, and so does this, because a reset form
+   * that says "no such user" is an account-enumeration oracle.
+   */
+  const resetPassword = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
     if (error) throw error;
   }, []);
 
@@ -97,11 +120,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       user: session?.user ?? null,
       isRestoring,
-      sendCode,
-      verifyCode,
+      register,
+      logIn,
+      resetPassword,
       signOut,
     }),
-    [session, isRestoring, sendCode, verifyCode, signOut],
+    [session, isRestoring, register, logIn, resetPassword, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
