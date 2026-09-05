@@ -85,7 +85,7 @@ export default function TaskDetailScreen() {
             </Text>
 
             {task.detail ? (
-              <Card className="mt-4">
+              <Card className={`mt-4 border-l-4 ${STATUS_META[task.status].cardBorder}`}>
                 <Text variant="meta">{task.detail}</Text>
               </Card>
             ) : null}
@@ -149,7 +149,7 @@ function HistoryEntry({ event, isCorrection }: { event: StatusEvent; isCorrectio
   const when = new Date(event.created_at);
 
   return (
-    <Card>
+    <Card className={`border-l-4 ${to.cardBorder}`}>
       <View className="gap-2 flex-row items-center">
         <View className={`h-3 w-3 rounded-full ${to.dot}`} />
         <Text className="font-semibold">

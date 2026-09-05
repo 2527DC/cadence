@@ -82,12 +82,7 @@ const PLACEHOLDER: Record<ClosableStatus, string> = {
 // not handed a new array on every keystroke.
 const SNAP_POINTS = ['92%'];
 
-// The sheet's background and handle take style objects, not classes, so the `bg`
-// and `faint` tokens from tailwind.config.js are repeated here. Keep them in step.
-const SHEET_COLORS = {
-  light: { background: '#FBFBFD', handle: '#98A2B3' },
-  dark: { background: '#0E1116', handle: '#667085' },
-} as const;
+import { SHEET_THEME } from '@/constants/theme';
 
 export function CloseTaskSheet({ task, onClose }: { task: Task | null; onClose: () => void }) {
   const close = useCloseTask();
@@ -267,7 +262,7 @@ export function CloseTaskSheet({ task, onClose }: { task: Task | null; onClose: 
 
   // ---- Sheet chrome ----------------------------------------------------------
 
-  const colors = scheme === 'dark' ? SHEET_COLORS.dark : SHEET_COLORS.light;
+  const colors = scheme === 'dark' ? SHEET_THEME.dark : SHEET_THEME.light;
   const backgroundStyle = useMemo(() => ({ backgroundColor: colors.background }), [colors]);
   const handleStyle = useMemo(() => ({ backgroundColor: colors.handle }), [colors]);
 

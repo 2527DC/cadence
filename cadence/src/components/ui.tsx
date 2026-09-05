@@ -15,6 +15,7 @@ import {
   type ViewProps,
 } from 'react-native';
 
+import { PALETTE, STATUS_THEME } from '@/constants/theme';
 import type { Database } from '@/types/database.types';
 
 type TaskStatus = Database['public']['Enums']['task_status'];
@@ -84,7 +85,7 @@ export function Button({
       className={`${BUTTON_BASE} ${BUTTON_VARIANTS[variant]} ${isDisabled ? 'opacity-50' : ''} ${className}`}
       {...rest}>
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#FFFFFF' : '#3B6FF5'} />
+        <ActivityIndicator color={variant === 'primary' ? '#FFFFFF' : PALETTE.light.accent} />
       ) : (
         <RNText className={BUTTON_LABELS[variant]}>{label}</RNText>
       )}
@@ -121,35 +122,7 @@ export function Card({
 // StatusDot / StatusPill
 // ---------------------------------------------------------------------------
 
-export const STATUS_META: Record<
-  TaskStatus,
-  { label: string; meaning: string; dot: string; text: string }
-> = {
-  OPEN: {
-    label: 'Open',
-    meaning: 'Committed, not yet resolved',
-    dot: 'bg-status-open dark:bg-status-open-dark',
-    text: 'text-status-open dark:text-status-open-dark',
-  },
-  C: {
-    label: 'Completed',
-    meaning: 'You did it',
-    dot: 'bg-status-c dark:bg-status-c-dark',
-    text: 'text-status-c dark:text-status-c-dark',
-  },
-  N: {
-    label: 'Not completed',
-    meaning: 'You did not do it',
-    dot: 'bg-status-n dark:bg-status-n-dark',
-    text: 'text-status-n dark:text-status-n-dark',
-  },
-  NC: {
-    label: 'Not counted',
-    meaning: 'Outside your control — excluded from the rate',
-    dot: 'bg-status-nc dark:bg-status-nc-dark',
-    text: 'text-status-nc dark:text-status-nc-dark',
-  },
-};
+export const STATUS_META = STATUS_THEME;
 
 export function StatusDot({ status, className = '' }: { status: TaskStatus; className?: string }) {
   return (
@@ -163,9 +136,10 @@ export function StatusDot({ status, className = '' }: { status: TaskStatus; clas
 export function StatusPill({ status }: { status: TaskStatus }) {
   const meta = STATUS_META[status];
   return (
-    <View className="gap-1.5 bg-raised px-2 py-1 dark:bg-raised-dark flex-row items-center rounded-full">
+    <View
+      className={`gap-1.5 px-2.5 py-1 flex-row items-center rounded-full border ${meta.pillBg} ${meta.pillBorder}`}>
       <StatusDot status={status} className="h-2 w-2" />
-      <RNText className={`text-micro font-semibold ${meta.text}`}>{status}</RNText>
+      <RNText className={`text-micro font-bold ${meta.text}`}>{status}</RNText>
     </View>
   );
 }

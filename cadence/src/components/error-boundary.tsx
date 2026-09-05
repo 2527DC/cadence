@@ -29,28 +29,7 @@ import { useEffect } from 'react';
 import { Pressable, ScrollView, Text, View, useColorScheme } from 'react-native';
 
 import { Button, Card, Text as UIText } from '@/components/ui';
-
-// The same values as the `bg` / `surface` / `border` / `ink` / `muted` / `accent`
-// tokens in tailwind.config.js. Repeated as literals on purpose: this component has
-// to render when the style pipeline is the thing that broke.
-const PALETTE = {
-  light: {
-    bg: '#FBFBFD',
-    surface: '#FFFFFF',
-    border: '#E4E7EC',
-    ink: '#12151A',
-    muted: '#667085',
-    accent: '#3B6FF5',
-  },
-  dark: {
-    bg: '#0E1116',
-    surface: '#161A21',
-    border: '#2A313C',
-    ink: '#F2F4F8',
-    muted: '#98A2B3',
-    accent: '#6E97FF',
-  },
-} as const;
+import { PALETTE } from '@/constants/theme';
 
 function messageOf(error: Error): string {
   const text = error?.message?.trim();

@@ -83,7 +83,7 @@ export function StillOpenSection({
 
       <View className="mt-2 gap-2">
         {tasks.map((task) => (
-          <Card key={task.id}>
+          <Card key={task.id} className={`border-l-4 ${STATUS_META[task.status].cardBorder}`}>
             <View className="gap-3 flex-row items-start justify-between">
               <View className="flex-1">
                 <Text className="font-semibold">{task.title}</Text>
@@ -310,7 +310,7 @@ export function ClosedSection({
       ) : (
         <View className="mt-2 gap-2">
           {entries.map(({ task, event, corrections }) => (
-            <Card key={task.id}>
+            <Card key={task.id} className={`border-l-4 ${STATUS_META[task.status].cardBorder}`}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`Open ${task.title}`}

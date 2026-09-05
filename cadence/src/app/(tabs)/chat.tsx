@@ -284,7 +284,7 @@ export default function ChatScreen() {
   );
 
   return (
-    <SafeAreaView className="bg-bg dark:bg-bg-dark flex-1" edges={['top']}>
+    <SafeAreaView className="bg-bg dark:bg-bg-dark flex-1 pb-3" edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

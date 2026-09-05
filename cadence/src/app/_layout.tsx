@@ -19,11 +19,36 @@ import { AuthProvider, useAuth } from '@/features/auth/auth-provider';
 // Imported by its own path rather than through the feature's barrel: the barrel also
 // exports the review screen's cards, which pull in the whole voice module, and none of
 // that belongs in the startup graph.
+import { colors } from '@/constants/theme';
 import { NotificationsBridge } from '@/features/notifications/bridge';
 import { startNetworkSync } from '@/features/sync/network';
 import { resumeOutbox, setupOutbox } from '@/features/sync/outbox-setup';
 import { SyncBanner } from '@/features/sync/sync-banner';
 import { persistOptions, queryClient } from '@/lib/query-client';
+
+const lightNavTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: colors.accent.DEFAULT,
+    background: colors.bg.DEFAULT,
+    card: colors.surface.DEFAULT,
+    text: colors.ink.DEFAULT,
+    border: colors.border.DEFAULT,
+  },
+};
+
+const darkNavTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: colors.accent.dark,
+    background: colors.bg.dark,
+    card: colors.surface.dark,
+    text: colors.ink.dark,
+    border: colors.border.dark,
+  },
+};
 
 /**
  * The root boundary. expo-router wraps this layout route in it, which puts it outside
@@ -111,7 +136,7 @@ export default function RootLayout() {
           persistOptions={persistOptions}
           onSuccess={onCacheRestored}>
           <AuthProvider>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <ThemeProvider value={colorScheme === 'dark' ? darkNavTheme : lightNavTheme}>
               <BottomSheetModalProvider>
                 <RouteGuard>
                   <View style={{ flex: 1 }}>

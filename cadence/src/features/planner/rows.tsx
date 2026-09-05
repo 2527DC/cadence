@@ -17,7 +17,7 @@ import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeabl
 
 import type { Goal } from '@/api/goals';
 import type { Task } from '@/api/tasks';
-import { Button, Card, StatusPill, Text } from '@/components/ui';
+import { Button, Card, STATUS_META, StatusPill, Text } from '@/components/ui';
 import { hapticWarn } from '@/lib/haptics';
 import type { DateString } from '@/lib/week';
 
@@ -97,7 +97,7 @@ export const CommittedRow = memo(function CommittedRow({
           ? 'Opens the task. Long press to close it.'
           : 'Opens the task and its full history.'
       }>
-      <Card className="gap-3 flex-row items-center">
+      <Card className={`gap-3 flex-row items-center border-l-4 ${STATUS_META[task.status].cardBorder}`}>
         <View className="flex-1">
           <Text
             numberOfLines={2}

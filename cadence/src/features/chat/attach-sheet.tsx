@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useGoals, type Goal } from '@/api/goals';
 import { useWeekTasks, type Task } from '@/api/tasks';
-import { Button, Loading, StatusDot, Text } from '@/components/ui';
+import { Button, Loading, StatusDot, STATUS_META, Text } from '@/components/ui';
 import { hapticSelect } from '@/lib/haptics';
 import { currentWeekStart, formatWeekRange } from '@/lib/week';
 
@@ -21,7 +21,10 @@ const ROW =
 
 function TaskRow({ task, onPress }: { task: Task; onPress: () => void }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} className={ROW}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      className={`${ROW} border-l-4 ${STATUS_META[task.status].cardBorder}`}>
       <StatusDot status={task.status} />
       <View className="flex-1">
         <Text numberOfLines={2}>{task.title}</Text>
