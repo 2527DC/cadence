@@ -12,9 +12,10 @@
 // on to it, so the response is still there when this effect finally has somewhere to
 // send it — and the three guards below are exactly those three conditions.
 
-import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useRootNavigationState, useRouter } from 'expo-router';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 
 import { useAuth } from '@/features/auth/auth-provider';
 
@@ -22,17 +23,30 @@ import { PLANNER_HREF, reviewHref } from './routes';
 import { deliveredAtMs, parseReminderPayload, weekToReview } from './schedule';
 import { initialiseReminders } from './store';
 
-export function NotificationsBridge() {
+// expo-notifications remote push was removed from Expo Go in SDK 53 on Android.
+// Importing it at module level throws in that environment, so we guard the import
+// entirely and only pull it in when we are in a real native build.
+const isExpoGo =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+// Lazy accessor — returns the module only in a real build, null in Expo Go.
+function getNotifications() {
+  if (isExpoGo && Platform.OS === 'android') return null;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('expo-notifications') as typeof import('expo-notifications');
+}
+
+/**
+ * useLastNotificationResponse is a hook — React's rules forbid conditional hooks —
+ * so we split into two components: one that uses the hook (only mounted in real
+ * native builds) and a no-op shell for Expo Go on Android.
+ */
+function NotificationsBridgeInner() {
+  const Notifications = getNotifications()!;
   const { session } = useAuth();
   const router = useRouter();
   const navigationState = useRootNavigationState();
   const response = Notifications.useLastNotificationResponse();
-
-  // Reschedule on every launch. applySchedule() cancels by identifier before it
-  // schedules, so this converges on two notifications rather than accumulating.
-  useEffect(() => {
-    void initialiseReminders();
-  }, []);
 
   const navigationReady = Boolean(navigationState?.key);
 
@@ -62,7 +76,21 @@ export function NotificationsBridge() {
     // Tapping Sunday's banner on Monday morning still opens the week it was about.
     const deliveredAt = new Date(deliveredAtMs(response.notification.date, Date.now()));
     router.push(reviewHref(weekToReview(deliveredAt)));
-  }, [response, session, navigationReady, router]);
+  }, [response, session, navigationReady, router, Notifications]);
 
   return null;
+}
+
+export function NotificationsBridge() {
+  // Reschedule on every launch. applySchedule() cancels by identifier before it
+  // schedules, so this converges on two notifications rather than accumulating.
+  useEffect(() => {
+    void initialiseReminders();
+  }, []);
+
+  // In Expo Go on Android (SDK 53+) the notifications module is unavailable.
+  // Skip the tap-handler inner component entirely; everything else still works.
+  if (isExpoGo && Platform.OS === 'android') return null;
+
+  return <NotificationsBridgeInner />;
 }
