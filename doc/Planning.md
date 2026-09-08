@@ -1,0 +1,16 @@
+1. i need to make when adding the target the goal i need to add the  thing of target  and in the chat when i update things it must show the message updated time and data and i must be able to mention the related gola also and target of the goal also where that shows the message of the related goal and messages related the tragets of the goal and i dont ant the dash board thing i in the chat where i can make use of any open api key where  i will give it the weeks  analysiss where if it was already generated no need to genrate where we can save teh ai cost and also  i need the feed back like  and suggenstion and other thing respecetd to my week chat and goal and my dats and my target agendsa and i must also have an option of selcting multiple weeks or month wise which must give me the data of the personal procuress and the consistency     
+
+-->  need u to make a rnd what will be the cost and what model i need to use where the data will be chat where as text where we mention or not mention the chat metions with the goal and the targests  things and related message and it also as the   voice records  
+-- for this thing how can i use ai and what way of knowledge it needs and  i must be able to provide the  resume in the word or the md formt and ask related question and realted area or practices  what things that i  must updated and which topic where it must be able to give the  suggestion on my resume and my carrear gols and what should i improve like this things 
+
+- and i need the this things to be known where   should i use the ai credentials to be provided by the shoudl it be aplication level or user level 
+
+- i think insted of deleting the thing like text messag eof chat or targests and other thing like voice message we can make it as uncount where the data stays but it remaisn as uncounted where we can save the ai cost 
+- need to make an rnd how it wil be good to make the ui ux for ts this like chat and goal and  record  as uncouncte toggeling  and in the chat i think i can use the ai where i can use it as an optional where it must  change my sentence it proper and some other option as in feature 
+
+
+- intigration of the google thing in this so that  can directly access the notes and other thing or create or use any opensourece or b uild in own same aplication where they  can add the things like notes where they can store lot of any ides of them it may be of anything busciness ideas  and use or create related  skill for ai to suggest relavent to the scpes  ( check is this adding skill from the aplictaion necessary i think it may cause some ssue in security or other or let  us the platform aplication person  create some skill where the ai can use those skill)
+
+need to change the them to skelo them  change the theme of the app 
+
+-> where i can have the interview preparaton also in this where i have the contest of learning in the other foler i think making a direct insert of the related thing to the app is best for this aplication  can save ai cost  need to thing how can i use  teh learning folder of things that i learn to use mcp i think were i can write directly where i can learn the  creation of mcp servers too 
